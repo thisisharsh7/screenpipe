@@ -122,7 +122,10 @@ export function AccountSection() {
               );
               if (subResponse.ok) {
                 const subData = await subResponse.json();
-                if (subData.hasSubscription) {
+                // Treat trialing subscriptions as active (API returns hasSubscription: false for trials)
+                const subStatus = subData.subscription?.status;
+                const isActive = subData.hasSubscription || subStatus === "trialing" || subStatus === "active";
+                if (isActive) {
                   updateSettings({
                     user: { ...settings.user!, cloud_subscribed: true },
                   });
@@ -217,14 +220,10 @@ export function AccountSection() {
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  openUrl(
-                    `https://billing.stripe.com/p/login/3cs6pT8Qbd846yc9AA?email=${encodeURIComponent(
-                      settings.user?.email || ""
-                    )}`
-                  )
+                  openUrl("https://screenpi.pe/billing")
                 }
               >
-                Manage subscription <ExternalLinkIcon className="w-3.5 h-3.5 ml-1.5" />
+                Billing <ExternalLinkIcon className="w-3.5 h-3.5 ml-1.5" />
               </Button>
             </div>
           </div>
