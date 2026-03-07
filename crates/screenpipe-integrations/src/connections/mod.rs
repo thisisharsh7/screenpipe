@@ -10,7 +10,6 @@
 
 pub mod discord;
 pub mod email;
-pub mod obsidian;
 pub mod slack;
 pub mod teams;
 pub mod telegram;
@@ -105,7 +104,6 @@ pub fn all_integrations() -> Vec<Box<dyn Integration>> {
         Box::new(discord::Discord),
         Box::new(email::Email),
         Box::new(webhook::Webhook),
-        Box::new(obsidian::Obsidian),
         Box::new(todoist::Todoist),
         Box::new(teams::Teams),
     ]
