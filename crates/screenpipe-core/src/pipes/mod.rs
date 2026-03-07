@@ -423,8 +423,10 @@ fn parse_error_type(stderr: &str) -> (Option<String>, Option<String>) {
 
 /// Manages all pipes: loading, scheduling, execution, logs.
 /// Callback fired after each scheduled pipe run completes.
-/// Args: (pipe_name, success, duration_secs)
-pub type OnPipeRunComplete = Arc<dyn Fn(&str, bool, f64) + Send + Sync>;
+/// Args: (pipe_name, success, duration_secs, error_type)
+/// `error_type` is a sanitized category (e.g. "rate_limited", "auth_failed", "timeout", "crash")
+/// — never contains user data.
+pub type OnPipeRunComplete = Arc<dyn Fn(&str, bool, f64, Option<&str>) + Send + Sync>;
 
 /// Callback fired for each stdout line from a running pipe.
 /// Args: (pipe_name, execution_id, line)
@@ -1092,7 +1094,7 @@ impl PipeManager {
                 exec_ids.remove(&pipe_name);
             }
 
-            let log = match run_result {
+            let (log, cb_error_type): (PipeRunLog, Option<String>) = match run_result {
                 Ok(Ok(output)) => {
                     let (error_type, error_message) = if !output.success {
                         parse_error_type(&output.stderr)
@@ -1123,14 +1125,19 @@ impl PipeManager {
                             .upsert_scheduler_state(&pipe_name, output.success)
                             .await;
                     }
-                    PipeRunLog {
+                    let et = if output.success {
+                        None
+                    } else {
+                        Some(error_type.unwrap_or_else(|| "unknown".to_string()))
+                    };
+                    (PipeRunLog {
                         pipe_name: pipe_name.clone(),
                         started_at,
                         finished_at,
                         success: output.success,
                         stdout: truncate_string(&filtered_stdout, 10_000),
                         stderr: truncate_string(&output.stderr, 5_000),
-                    }
+                    }, et)
                 }
                 Ok(Err(e)) => {
                     if let (Some(ref store), Some(id)) = (&store_ref, exec_id) {
@@ -1149,14 +1156,14 @@ impl PipeManager {
                     if let Some(ref store) = store_ref {
                         let _ = store.upsert_scheduler_state(&pipe_name, false).await;
                     }
-                    PipeRunLog {
+                    (PipeRunLog {
                         pipe_name: pipe_name.clone(),
                         started_at,
                         finished_at,
                         success: false,
                         stdout: String::new(),
                         stderr: e.to_string(),
-                    }
+                    }, Some("crash".to_string()))
                 }
                 Err(_elapsed) => {
                     if let Some(handle) = removed_handle {
@@ -1185,14 +1192,14 @@ impl PipeManager {
                     if let Some(ref store) = store_ref {
                         let _ = store.upsert_scheduler_state(&pipe_name, false).await;
                     }
-                    PipeRunLog {
+                    (PipeRunLog {
                         pipe_name: pipe_name.clone(),
                         started_at,
                         finished_at,
                         success: false,
                         stdout: String::new(),
                         stderr: format!("execution timed out after {}s", DEFAULT_TIMEOUT_SECS),
-                    }
+                    }, Some("timeout".to_string()))
                 }
             };
 
@@ -1218,7 +1225,7 @@ impl PipeManager {
             drop(l);
 
             if let Some(ref cb) = on_complete {
-                cb(&name_for_cb, success, duration_secs);
+                cb(&name_for_cb, success, duration_secs, cb_error_type.as_deref());
             }
 
             // Clean up pipe token from server registry
@@ -2119,7 +2126,7 @@ impl PipeManager {
                             exec_ids.remove(&pipe_name);
                         }
 
-                        let log = match run_result {
+                        let (log, cb_error_type): (PipeRunLog, Option<String>) = match run_result {
                             Ok(Ok(output)) => {
                                 let (error_type, error_message) = if !output.success {
                                     parse_error_type(&output.stderr)
@@ -2157,14 +2164,19 @@ impl PipeManager {
                                 } else {
                                     warn!("pipe '{}' failed: {}", pipe_name, output.stderr);
                                 }
-                                PipeRunLog {
+                                let et = if output.success {
+                                    None
+                                } else {
+                                    Some(error_type.unwrap_or_else(|| "unknown".to_string()))
+                                };
+                                (PipeRunLog {
                                     pipe_name: pipe_name.clone(),
                                     started_at,
                                     finished_at,
                                     success: output.success,
                                     stdout: truncate_string(&filtered_stdout, 10_000),
                                     stderr: truncate_string(&output.stderr, 5_000),
-                                }
+                                }, et)
                             }
                             Ok(Err(e)) => {
                                 error!("pipe '{}' error: {}", pipe_name, e);
@@ -2184,14 +2196,14 @@ impl PipeManager {
                                 if let Some(ref store) = store_ref {
                                     let _ = store.upsert_scheduler_state(&pipe_name, false).await;
                                 }
-                                PipeRunLog {
+                                (PipeRunLog {
                                     pipe_name: pipe_name.clone(),
                                     started_at,
                                     finished_at,
                                     success: false,
                                     stdout: String::new(),
                                     stderr: e.to_string(),
-                                }
+                                }, Some("crash".to_string()))
                             }
                             Err(_elapsed) => {
                                 warn!(
@@ -2222,7 +2234,7 @@ impl PipeManager {
                                 if let Some(ref store) = store_ref {
                                     let _ = store.upsert_scheduler_state(&pipe_name, false).await;
                                 }
-                                PipeRunLog {
+                                (PipeRunLog {
                                     pipe_name: pipe_name.clone(),
                                     started_at,
                                     finished_at,
@@ -2232,7 +2244,7 @@ impl PipeManager {
                                         "execution timed out after {}s",
                                         DEFAULT_TIMEOUT_SECS
                                     ),
-                                }
+                                }, Some("timeout".to_string()))
                             }
                         };
 
@@ -2261,7 +2273,7 @@ impl PipeManager {
 
                         // Fire run-complete callback (analytics, etc.)
                         if let Some(ref cb) = on_complete {
-                            cb(&name_for_cb, success, duration_secs);
+                            cb(&name_for_cb, success, duration_secs, cb_error_type.as_deref());
                         }
 
                         // Clean up pipe token from server registry
