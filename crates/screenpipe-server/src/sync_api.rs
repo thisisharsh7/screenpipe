@@ -95,9 +95,9 @@ pub async fn sync_init(
     }
 
     // Generate or use provided machine ID
-    let machine_id = request.machine_id.unwrap_or_else(|| {
-        screenpipe_core::sync::get_or_create_machine_id()
-    });
+    let machine_id = request
+        .machine_id
+        .unwrap_or_else(|| screenpipe_core::sync::get_or_create_machine_id());
 
     // Get device info
     let device_name = hostname::get()

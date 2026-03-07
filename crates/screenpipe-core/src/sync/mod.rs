@@ -109,6 +109,7 @@ pub use crypto::{
     compute_checksum, generate_nonce, generate_salt, generate_search_token,
     generate_search_tokens_from_text, HMAC_SIZE, KEY_SIZE, NONCE_SIZE, SALT_SIZE,
 };
+pub use device::get_or_create_machine_id;
 pub use error::{SyncError, SyncResult};
 pub use keys::{ExistingUserKeyData, NewUserKeyData, SyncKeys};
 pub use manager::{SearchMatchInfo, SearchResult, SyncManager, UploadResult};
@@ -116,4 +117,3 @@ pub use service::{
     PendingBlob, SyncCommand, SyncDataProvider, SyncEvent, SyncReport, SyncService,
     SyncServiceConfig, SyncServiceHandle,
 };
-pub use device::get_or_create_machine_id;
