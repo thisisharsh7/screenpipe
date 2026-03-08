@@ -13,6 +13,7 @@ use crate::store::IcsCalendarEntry;
 use crate::store::IcsCalendarSettingsStore;
 use chrono::{DateTime, Local, TimeZone, Utc};
 use chrono_tz::Tz;
+use futures::stream::{self, StreamExt};
 use icalendar::{Calendar, CalendarDateTime, Component, DatePerhapsTime, EventLike};
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -139,7 +140,10 @@ fn date_perhaps_time_to_utc(dpt: &DatePerhapsTime) -> Option<DateTime<Utc>> {
                         let mut guard = WARNED_TIMEZONES.lock().unwrap();
                         let set = guard.get_or_insert_with(HashSet::new);
                         if set.insert(tzid.to_string()) {
-                            warn!("ics_calendar: unknown timezone '{}', falling back to local", tzid);
+                            warn!(
+                                "ics_calendar: unknown timezone '{}', falling back to local",
+                                tzid
+                            );
                         }
                         let local = Local::now().timezone();
                         local
@@ -270,7 +274,7 @@ fn parse_ics_to_events(ics_text: &str, feed_name: &str) -> Vec<CalendarEventItem
 
 async fn fetch_and_parse_feed(
     client: &reqwest::Client,
-    entry: &IcsCalendarEntry,
+    entry: IcsCalendarEntry,
 ) -> Vec<CalendarEventItem> {
     let url = entry.url.replace("webcal://", "https://");
 
@@ -316,11 +320,15 @@ pub async fn start_ics_calendar_poller(app: AppHandle) {
                 .collect();
 
             if !enabled_entries.is_empty() {
-                let mut all_events = Vec::new();
-                for entry in &enabled_entries {
-                    let events = fetch_and_parse_feed(&client, entry).await;
-                    all_events.extend(events);
-                }
+                let tasks = enabled_entries
+                    .into_iter()
+                    .map(|entry| fetch_and_parse_feed(&client, entry));
+
+                let all_events_vec: Vec<Vec<CalendarEventItem>> =
+                    stream::iter(tasks).buffer_unordered(10).collect().await;
+
+                let all_events: Vec<CalendarEventItem> =
+                    all_events_vec.into_iter().flatten().collect();
 
                 if !all_events.is_empty() {
                     if let Err(e) = screenpipe_events::send_event("calendar_events", all_events) {
@@ -383,12 +391,13 @@ pub async fn ics_calendar_get_upcoming(app: AppHandle) -> Result<Vec<CalendarEve
     }
 
     let client = reqwest::Client::new();
-    let mut all_events = Vec::new();
 
-    for entry in &enabled {
-        let events = fetch_and_parse_feed(&client, entry).await;
-        all_events.extend(events);
-    }
+    let tasks = enabled
+        .into_iter()
+        .map(|entry| fetch_and_parse_feed(&client, entry));
+    let all_events_vec: Vec<Vec<CalendarEventItem>> =
+        stream::iter(tasks).buffer_unordered(10).collect().await;
+    let mut all_events: Vec<CalendarEventItem> = all_events_vec.into_iter().flatten().collect();
 
     // Filter to next 8 hours only
     let now = Utc::now();
@@ -408,4 +417,36 @@ pub async fn ics_calendar_get_upcoming(app: AppHandle) -> Result<Vec<CalendarEve
     all_events.sort_by(|a, b| a.start.cmp(&b.start));
 
     Ok(all_events)
+}
+
+#[cfg(test)]
+mod tests {
+    use futures::stream::{self, StreamExt};
+    use std::time::{Duration, Instant};
+
+    #[tokio::test]
+    async fn test_parallel_fetch_logic() {
+        let entries: Vec<u32> = (0..10).collect();
+
+        async fn mock_fetch(id: &u32) -> u32 {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            *id
+        }
+
+        let start = Instant::now();
+
+        let tasks = entries.iter().map(|id| mock_fetch(id));
+        let results: Vec<u32> = stream::iter(tasks).buffer_unordered(10).collect().await;
+
+        let elapsed = start.elapsed();
+
+        assert_eq!(results.len(), 10);
+        // Sequential would be 1000ms
+        // Parallel should be ~100ms
+        assert!(
+            elapsed < Duration::from_millis(500),
+            "Execution took {:?}, expected < 500ms",
+            elapsed
+        );
+    }
 }
