@@ -8,11 +8,12 @@
 
 ### 1.1. Live Text Interaction (macOS)
 
-commits: `e9c76934`, `9acdf850`
+commits: `e9c76934`, `9acdf850`, `d91b4849`
 
 - [ ] **Native Live Text selection** — On macOS, verify that native Live Text selection works within the app's text overlay.
 - [ ] **Native Data Detectors** — On macOS, verify that native data detectors (e.g., phone numbers, addresses, dates) are active and clickable within the app's text overlay.
 - [ ] **Cross-architecture Live Text compilation** — On both x86_64 (Intel) and arm64 (Apple Silicon) macOS machines, verify that Live Text functionality is available and works without compilation errors or runtime issues.
+- [ ] **Live Text disabled in embedded mode** — Verify native Live Text is disabled in embedded timeline mode (`d91b4849`).
 
 
 - [ ] **window mode CSS restore** — In window mode (not fullscreen), verify that CSS styling is correct and as expected (e.g., no unexpected transparent panels).
@@ -238,17 +239,22 @@ commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`
 - [ ] **pipe_config blobs skipped in sync** — Verify that `pipe_config` blobs are correctly skipped during synchronization, preventing unnecessary data transfer and potential issues. (`08d5c53a`)
 - [ ] **Pi's native auto-compaction for pipe session history** — Verify that Pi's native auto-compaction feature for pipe session history works as expected, preventing indefinite growth of history and maintaining performance. (`8f49e2cf`)
 - [ ] **UTF-8 panic with long multi-byte strings** — Introduce long strings with multi-byte UTF-8 characters (e.g., in window titles, chat input, search queries). Verify no panics occur when these strings are truncated, stored, or processed.
+- [ ] **FTS5 Query Sanitization** — Verify sanitize fts5 queries for app_name/window_name to fix syntax error on dots (`bd6841a67`).
 
-- [ ] **slow DB insert warning** — check logs. "Slow DB batch insert" warnings should be <1s in normal operation. >3s indicates contention.
-- [ ] **concurrent DB access** — UI queries + recording inserts happening simultaneously. no "database is locked" errors.
-- [ ] **store race condition** — rapidly toggle settings while recording is active. no crash (`eea0c865`).
-- [ ] **event listener race condition** — Tauri event listener setup during rapid window creation. no crash (`cc09de61`).
-- [ ] **UTF-8 boundary panic** — search with special characters, non-ASCII text in OCR results. no panic on string slicing (`eea0c865`).
-- [ ] **low disk space** — with <1GB free, app should warn user. no crash from failed writes.
-- [ ] **large database (>10GB)** — search still returns results within 2 seconds. app doesn't freeze on startup.
-- [ ] **Audio chunk timestamps** — `start_time` and `end_time` are correctly set for reconciled and retranscribed audio chunks in the database.
+### 10. Vault (Encryption at Rest)
 
-### 10. AI presets & settings
+commits: `274a968af`, `dc575e48e`, `bb3ba65d8`, `d5e071854`, `db08f8c06`, `f4225b580`, `5bb8e3607`, `81aabbf18`
+
+- [ ] **Vault Lock/Unlock** — Verify encryption and decryption of screenpipe data at rest.
+- [ ] **Fast Vault Unlock** — Verify fast unlock: database decrypts first, data files (videos/audio) decrypt in background (`dc575e48e`).
+- [ ] **Vault Sentinel & Fallback** — Verify vault sentinel detection and fallback to encrypted DB detection (`bb3ba65d8`).
+- [ ] **Server behavior when Locked** — Verify server skip start when vault is locked; decrypt via Tauri commands (`d5e071854`).
+- [ ] **Recording behavior on Lock/Unlock** — Verify recording stops on lock and restarts on unlock (`db08f8c06`).
+- [ ] **CLI Vault Commands** — Verify `screenpipe vault` commands work directly with filesystem without requiring a running server (`f4225b580`).
+- [ ] **Vault Lock Shortcut** — Verify configurable vault lock shortcut in settings UI works (`81aabbf18`).
+- [ ] **Vault lock detection** — Verify UI correctly detects locked state and disables features as needed (`cdb6b0f6b`).
+
+### 11. AI presets & settings
 
 commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`
 
@@ -260,6 +266,7 @@ commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`
 - [ ] **language/OCR engine setting** — change OCR language. new language used on next capture cycle.
 - [ ] **video quality setting** — low/balanced/high/max. affects FFmpeg encoding params (`21bddd0f`).
 - [ ] **Settings UI sentence case** — All settings UI elements (billing, pipes, team) should use consistent sentence case.
+- [ ] **Settings Grouping** — Verify restructure of settings into APP / DATA & PRIVACY / ACCOUNT groups (`382484716`).
 - [ ] **Billing page links to website** — Verify that the in-app billing page correctly links to the *new* website billing page.
 - [ ] **Non-pro subscriber Whisper fallback** — As a non-pro subscriber, verify that audio transcription defaults to `whisper-large-v3-turbo-quantized` and functions correctly.
 - [ ] **Pi restart on preset switch** — Switch between different AI presets. Verify that the Pi agent restarts if required by the new preset.
@@ -267,18 +274,7 @@ commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`
 - [ ] **Credit balance in billing UI and errors** — Verify that the billing UI accurately displays the credit balance and clearly differentiates between `credits_exhausted` and other LLM-related errors.
 - [ ] **Unknown AI provider type sanitization** — Configure a malformed or unknown AI provider type (e.g., by manual config edit). Verify the app doesn't crash on startup or when navigating to settings, and gracefully handles the unknown type.
 
-commits: `8a5f51dd`, `0b0d8090`
-
-- [ ] **Ollama not running** — creating an Ollama preset shows free-text input fields (not stuck loading). user can type model name manually (`8a5f51dd`).
-- [ ] **custom provider preset** — user can add a custom API endpoint. model name is free-text input with optional autocomplete.
-- [ ] **settings survive restart** — change any setting, quit, relaunch. setting is preserved.
-- [ ] **overlay mode switch** — change from fullscreen to window mode. setting saves. next shortcut press uses new mode.
-- [ ] **FPS setting** — change capture FPS. recording interval changes accordingly.
-- [ ] **language/OCR engine setting** — change OCR language. new language used on next capture cycle.
-- [ ] **video quality setting** — low/balanced/high/max. affects FFmpeg encoding params (`21bddd0f`).
-- [ ] **Settings UI sentence case** — All settings UI elements (billing, pipes, team) should use consistent sentence case.
-
-### 11. onboarding
+### 12. onboarding
 
 commits: `87abb00d`, `9464fdc9`, `0f9e43aa`, `7ea15f32`, `bf1f1004`
 
@@ -290,16 +286,7 @@ commits: `87abb00d`, `9464fdc9`, `0f9e43aa`, `7ea15f32`, `bf1f1004`
 - [ ] **onboarding doesn't re-show** — after completing onboarding, restart app. main window shows, not onboarding.
 - [ ] **First-run 2-hour reminder notification** — On a fresh install, verify that a custom notification panel appears after approximately 2 hours as a first-run reminder.
 
-commits: `87abb00d`, `9464fdc9`, `0f9e43aa`, `7ea15f32`
-
-- [ ] **fresh install flow** — onboarding appears, permissions requested, user completes setup.
-- [ ] **auto-advance after engine starts** — status screen advances automatically after 15-20 seconds once engine is running (`87abb00d`, `9464fdc9`).
-- [ ] **skip onboarding** — user can skip and get to main app. settings use defaults.
-- [ ] **shortcut gate** — onboarding teaches the shortcut. user must press it to proceed (`0f9e43aa`).
-- [ ] **onboarding window size** — window is correctly sized, no overflow (`7ea15f32`).
-- [ ] **onboarding doesn't re-show** — after completing onboarding, restart app. main window shows, not onboarding.
-
-### 12. timeline & search
+### 13. timeline & search
 
 commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`, `e61501da`, `039d5fea`, `50ff4f4c`, `91cc4371`
 
@@ -314,6 +301,9 @@ commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`, `e61501da`, `039d5fea`,
 - [ ] **Keyword search accessibility** — Keyword search should find content within accessibility-only frames and utilize `frames_fts` for comprehensive accessibility text searching.
 - [ ] **Keyword search logic** — Verify that keyword search SQL correctly uses `OR` instead of `UNION` within `IN()`.
 - [ ] **Search prompt accuracy** — Verify that search prompts are improved to prevent false negatives from over-filtering.
+- [ ] **Embedded timeline scroll** — Verify scroll via native event swizzle (`5762c60bf`).
+- [ ] **Trackpad/wheel scrolling** — Verify trackpad/wheel scrolling works in embedded search results (`2a6c8f50b`).
+- [ ] **Scroll-zoom null-safety** — Verify no crashes when zooming/scrolling in timeline (`d102913df`).
 - [ ] **Past-day timeline navigation** — Navigate the timeline to past days (e.g., using date picker or arrow keys). Verify that data loads correctly and the timeline behaves as expected.
 - [ ] **`content_type=all` search and pagination** — Perform search queries with `content_type=all`. Verify that the result count is accurate and pagination works correctly without missing or duplicating results.
 - [ ] **Search pagination with offset** — Perform paginated searches, particularly beyond the first page. Verify that results are not empty or incorrect due to double-applied offsets.
@@ -331,21 +321,7 @@ commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`, `e61501da`, `039d5fea`,
 - [ ] **AI suggestion chip refresh and animations** — Verify a refresh button exists on AI suggestion chips, and appropriate animations (e.g., loading spinner) are shown when refreshing.
 - [ ] **Activity summary time measurement and relative parsing** — Verify activity summaries display accurate time measurements and relative time parsing (e.g., "5 minutes ago", "yesterday") works correctly in the UI.
 
-commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`
-
-- [ ] **arrow key navigation** — left/right arrow keys navigate timeline frames (`f1255eac`).
-- [ ] **search results sorted by time** — search results appear in chronological order (`25cbdc6b`).
-- [ ] **no frame clearing during navigation** — navigating timeline doesn't cause frames to disappear and reload (`2529367d`).
-- [ ] **URL detection in frames** — URLs visible in screenshots are extracted and shown as clickable pills (`50ef52d1`, `aa992146`).
-- [ ] **app context popover** — clicking app icon in timeline shows context (time, windows, urls, audio) (`be3ecffb`).
-- [ ] **daily summary in timeline** — Apple Intelligence summary shows in timeline, compact when no summary (`d9821624`).
-- [ ] **window-focused refresh** — opening app via shortcut/tray refreshes timeline data immediately (`0b057046`).
-- [ ] **frame deep link navigation** — `screenpipe://frame/N` or `screenpipe://frames/N` opens main window and jumps to frame N. works from cold start; invalid IDs show clear error.
-- [ ] **Keyword search accessibility** — Keyword search should find content within accessibility-only frames and utilize `frames_fts` for comprehensive accessibility text searching.
-- [ ] **Keyword search logic** — Verify that keyword search SQL correctly uses `OR` instead of `UNION` within `IN()`.
-- [ ] **Search prompt accuracy** — Verify that search prompts are improved to prevent false negatives from over-filtering.
-
-### 13. sync & cloud
+### 14. sync & cloud
 
 commits: `2f6b2af5`, `ea7f1f61`, `5cb100ea`
 
@@ -359,14 +335,25 @@ commits: `2f6b2af5`, `ea7f1f61`, `5cb100ea`
 - [ ] **Encrypted pipe sync (Pro) and locked toggle (non-Pro)** — As a Pro user, enable encrypted pipe sync and verify pipes sync encrypted. As a non-Pro user, verify the encrypted pipe sync toggle is locked and inaccessible.
 - [ ] **Arc URL extraction and pipe_config blobs** — If Arc Browser is supported, verify accurate URL extraction. Verify that `pipe_config` blobs are correctly skipped during sync (requires inspection of sync data or logs).
 
-### 14. Region OCR (Shift+Drag)
+### 15. Region OCR (Shift+Drag)
 
 commits: `b3628788`, `738178da`
 
 - [ ] **Shift+Drag region OCR functionality** — Perform a `Shift+Drag` region OCR selection on the screen. Verify that the RegionOcrOverlay appears correctly and local OCR processes the selected region.
 - [ ] **Local OCR without login for Shift+Drag** — Verify that the `Shift+Drag` region OCR uses local OCR and functions correctly without requiring the user to be logged in or have a cloud subscription.
 
-### 15. Windows-specific
+### 16. Integrations & Connections
+
+commits: `90af66dc1`, `60769a74e`, `5fe51353a`, `7718419a3`, `1f1961ab`, `c4effe191`, `b6b1b6d1`
+
+- [ ] **Parallel ICS fetching** — Verify calendar fetches ICS feeds in parallel and deduplicates events correctly (`90af66dc1`).
+- [ ] **WhatsApp Gateway** — Verify `GET /contacts` endpoint works for resolving names to phone numbers (`60769a74e`).
+- [ ] **`screenpipe connection` CLI** — Verify CLI commands for listing and managing integrations work correctly (`5fe51353a`).
+- [ ] **New Integrations** — Verify connectivity and basic functionality for WhatsApp, AnythingLLM, Ollama, LM Studio, Notion, Linear, Perplexity (`7718419a3`).
+- [ ] **Connections Help Tooltips** — Verify tooltips show on hover, have correct offset, and provide descriptive text (`c4effe191`, `ae0820d2e`, `1f1961ab`).
+- [ ] **CLI WhatsApp session check** — Verify CLI correctly checks WhatsApp session on disk without API call (`5eb6f10b0`).
+
+### 17. Windows-specific
 
 commits: `eea0c865`, `fe9060db`, `c99c3967`, `aeaa446b`, `5a219688`, `caae1ebc`, `67caf1d1`, `ff4af7b5`
 
@@ -379,22 +366,13 @@ commits: `eea0c865`, `fe9060db`, `c99c3967`, `aeaa446b`, `5a219688`, `caae1ebc`,
 - [ ] **Windows audio transcription accuracy** — On Windows, verify improved audio transcription accuracy due to native Silero VAD frame size and lower speech threshold.
 - [ ] **Windows multi-line pipe prompts** — Multi-line pipe prompts should be preserved on Windows.
 - [ ] **Alt+S shortcut activates overlay with keyboard focus** — On Windows, press `Alt+S`. Verify that the overlay window appears and immediately receives keyboard focus, allowing immediate typing.
+- [ ] **Windows Settings Window** — Verify Windows uses Settings window instead of overlay for shortcuts (`c13e21b55`).
+- [ ] **Search modal scroll on Windows/Linux** — Verify search modal scroll works in embedded timeline (`f108f1f0d`).
 - [ ] **OcrTextBlock deserialization handles Windows OCR format** — On Windows, verify that `OcrTextBlock` deserialization correctly handles the specific Windows OCR format. (`c49ccb55`)
 - [ ] **populate accessibility tree bounds for text overlay on Windows** — On Windows, verify that accessibility tree bounds are correctly populated for text overlay, ensuring accurate positioning and interaction. (`4d20803a`)
 - [ ] **capture full accessibility tree for Chromium/Electron apps on Windows** — On Windows, verify that the full accessibility tree is captured for Chromium/Electron applications. (`2e50c772`)
 - [ ] **Accessibility tree bounds for text overlay** — On Windows, verify that text overlays accurately reflect the accessibility tree bounds, making selection and interaction precise.
 - [ ] **Filter noisy system apps** — On Windows, verify that noisy system apps are filtered out from screen capture and do not appear in the timeline or search results.
-
-commits: `eea0c865`, `fe9060db`, `c99c3967`, `aeaa446b`, `5a219688`, `caae1ebc`, `67caf1d1`
-
-- [ ] **COM thread conflict** — audio and vision threads don't conflict on COM initialization (`eea0c865`).
-- [ ] **high-DPI display (150%, 200%)** — OCR captures at correct resolution.
-- [ ] **multiple monitors** — all detected and recorded.
-- [ ] **Windows Defender** — app not blocked by default security.
-- [ ] **Windows default mode** — On Windows, the app should default to window mode on first launch.
-- [ ] **Windows taskbar icon** — The app should display a taskbar icon on Windows.
-- [ ] **Windows audio transcription accuracy** — On Windows, verify improved audio transcription accuracy due to native Silero VAD frame size and lower speech threshold.
-- [ ] **Windows multi-line pipe prompts** — Multi-line pipe prompts should be preserved on Windows.
 
 #### Windows text extraction matrix (accessibility vs OCR)
 
