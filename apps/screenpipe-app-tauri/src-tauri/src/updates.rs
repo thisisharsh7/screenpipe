@@ -116,6 +116,25 @@ pub fn is_source_build(_app: &tauri::AppHandle) -> bool {
 }
 
 /// Enterprise build: updates are managed by IT (Intune/RoboPack), not in-app.
+/// Check if the current macOS user is an admin.
+/// Always returns true on other platforms.
+pub fn is_macos_admin() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::Command;
+        if let Ok(output) = Command::new("id").arg("-Gn").output() {
+            if let Ok(groups) = String::from_utf8(output.stdout) {
+                return groups.split_whitespace().any(|g| g == "admin");
+            }
+        }
+        true
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        true
+    }
+}
+
 pub fn is_enterprise_build(_app: &tauri::AppHandle) -> bool {
     cfg!(feature = "enterprise-build")
 }
@@ -246,6 +265,35 @@ impl UpdatesManager {
             }
         }
         if let Some(update) = check_result? {
+            // macOS non-admin users cannot rename /Applications/ bundles.
+            // tauri-plugin-updater falls back to an AppleScript dialog on the main thread,
+            // which hangs the app. Show a notification instead.
+            if !is_macos_admin() {
+                warn!("skipping auto-update: user is not a macOS admin");
+                let update_info = serde_json::json!({
+                    "version": update.version,
+                    "body": update.body.clone().unwrap_or_default()
+                });
+                let _ = self.app.emit("update-needs-admin", update_info);
+
+                let app_notif = self.app.clone();
+                let version_str = update.version.clone();
+                std::thread::spawn(move || {
+                    let _ = app_notif
+                        .notification()
+                        .builder()
+                        .title("screenpipe update available")
+                        .body(format!("v{} is ready — ask your admin to install it", version_str))
+                        .show();
+                });
+
+                if let Some(ref item) = self.update_menu_item {
+                    let _ = item.set_enabled(false);
+                    let _ = item.set_text("Ask admin to install update");
+                }
+
+                return Ok(true);
+            }
             *self.update_available.lock().await = true;
 
             // Emit "update-downloading" immediately so user sees feedback
