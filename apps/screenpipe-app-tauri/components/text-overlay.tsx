@@ -270,13 +270,16 @@ export const TextOverlay = memo(function TextOverlay({
 
 		const result: { key: string; left: number; top: number; width: number; height: number }[] = [];
 
-		for (const pos of textPositions) {
-			if (pos.confidence < minConfidence) continue;
-
+		const matches = textPositions.filter((pos) => {
+			if (pos.confidence < minConfidence) return false;
 			const textLower = pos.text.toLowerCase();
-			const matches = terms.some(term => textLower.includes(term));
-			if (!matches) continue;
+			return terms.some(term => textLower.includes(term));
+		});
 
+		// Sort by area so we prioritize tighter word-level OCR boxes over massive paragraph nodes
+		matches.sort((a, b) => (a.bounds.width * a.bounds.height) - (b.bounds.width * b.bounds.height));
+
+		for (const pos of matches) {
 			const blockLeft = pos.bounds.left * displayedWidth;
 			const blockTop = pos.bounds.top * displayedHeight;
 			const blockWidth = pos.bounds.width * displayedWidth;
@@ -294,7 +297,10 @@ export const TextOverlay = memo(function TextOverlay({
 				if (overlapRight <= overlapLeft || overlapBottom <= overlapTop) return false;
 				const overlapArea = (overlapRight - overlapLeft) * (overlapBottom - overlapTop);
 				const thisArea = blockWidth * blockHeight;
-				return overlapArea > thisArea * 0.5;
+				const existingArea = existing.width * existing.height;
+				// If overlap covers > 50% of the SMALLER box, consider it a duplicate.
+				// We keep the one already in result, which is the smaller one due to the sort above.
+				return overlapArea > Math.min(thisArea, existingArea) * 0.5;
 			});
 			if (isDuplicate) continue;
 

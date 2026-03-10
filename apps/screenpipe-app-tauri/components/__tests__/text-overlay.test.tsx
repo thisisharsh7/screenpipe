@@ -395,3 +395,33 @@ describe("normalizeUrl", () => {
 		expect(normalizeUrl("example.com")).toBe("https://example.com");
 	});
 });
+
+describe("TextOverlay highlight terms", () => {
+	it("should prefer smaller matching blocks and reject huge overlapping ones as duplicates", () => {
+		const positions = [
+			// Huge paragraph block
+			{ text: "Hello search term", confidence: 1, bounds: { left: 0.1, top: 0.1, width: 0.8, height: 0.8 } },
+			// Small precise word block
+			{ text: "search term", confidence: 1, bounds: { left: 0.5, top: 0.5, width: 0.1, height: 0.1 } },
+		];
+		const { container } = render(
+			<TextOverlay
+				textPositions={positions}
+				originalWidth={1000}
+				originalHeight={1000}
+				displayedWidth={1000}
+				displayedHeight={1000}
+				highlightTerms={["search term"]}
+			/>
+		);
+		// It should only render one highlight, which is the smaller one.
+		// Since TextOverlay has pointer-events-none and background color, let's find the highlights
+		const highlights = container.querySelectorAll('div[style*="background-color: rgba(250, 204, 21, 0.35)"]');
+		// There are two blocks matching "search term". Since they overlap, it should keep the smaller one and skip the large one.
+		expect(highlights.length).toBe(1);
+		
+		const style = highlights[0].getAttribute("style");
+		expect(style).toContain("width: 100px"); // 0.1 * 1000
+		expect(style).toContain("height: 100px"); // 0.1 * 1000
+	});
+});

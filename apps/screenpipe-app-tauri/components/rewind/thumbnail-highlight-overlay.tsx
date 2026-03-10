@@ -48,11 +48,9 @@ export const ThumbnailHighlightOverlay = memo(function ThumbnailHighlightOverlay
 
 		if (matches.length === 0) return [];
 
-		// Skip if the smallest match already covers >15% of the frame area —
-		// that means we only have paragraph-level blocks, not useful highlights.
-		const smallest = matches[0];
-		if (smallest.bounds.width * smallest.bounds.height > 0.15) return [];
-
+		// We used to skip if the smallest match covered >15% of the frame area,
+		// but users reported this as "missing highlights" (issue #2403, #2401).
+		// Better to show a large paragraph highlight than none at all.
 		return matches.slice(0, 3);
 	}, [textPositions, highlightTerms]);
 
