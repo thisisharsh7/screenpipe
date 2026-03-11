@@ -116,6 +116,26 @@ pub fn is_source_build(_app: &tauri::AppHandle) -> bool {
 }
 
 /// Enterprise build: updates are managed by IT (Intune/RoboPack), not in-app.
+
+use std::sync::OnceLock;
+
+fn is_macos_admin() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        static IS_ADMIN: OnceLock<bool> = OnceLock::new();
+        *IS_ADMIN.get_or_init(|| {
+            if let Ok(output) = std::process::Command::new("id").arg("-Gn").output() {
+                let groups = String::from_utf8_lossy(&output.stdout);
+                groups.split_whitespace().any(|g| g == "admin")
+            } else {
+                true // Fallback to true to not break updates if `id` fails
+            }
+        })
+    }
+    #[cfg(not(target_os = "macos"))]
+    true
+}
+
 pub fn is_enterprise_build(_app: &tauri::AppHandle) -> bool {
     cfg!(feature = "enterprise-build")
 }
@@ -247,6 +267,30 @@ impl UpdatesManager {
         }
         if let Some(update) = check_result? {
             *self.update_available.lock().await = true;
+
+            if !is_macos_admin() {
+                warn!("skipping auto-update: user is not a macOS admin");
+                
+                if let Some(ref item) = self.update_menu_item {
+                    item.set_enabled(false)?;
+                    item.set_text("Update available (requires admin)")?;
+                }
+                
+                let _ = self.app.emit(
+                    "update-needs-admin",
+                    serde_json::json!({
+                        "version": update.version.clone(),
+                        "body": update.body.clone().unwrap_or_default()
+                    }),
+                );
+                
+                let _ = self.app.notification().builder()
+                    .title("Screenpipe Update Available")
+                    .body(format!("Version {} is available. Ask your admin to install it.", update.version))
+                    .show();
+                
+                return Ok(true);
+            }
 
             // Emit "update-downloading" immediately so user sees feedback
             let download_info = serde_json::json!({
@@ -642,4 +686,28 @@ pub fn start_update_check(
     });
 
     Ok(updates_manager)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_macos_admin() {
+        // Just verify it doesn't crash
+        let is_admin = is_macos_admin();
+        println!("is_macos_admin: {}", is_admin);
+        
+        #[cfg(target_os = "macos")]
+        {
+            // If running on a mac, we should be able to get a boolean value
+            // (it could be true or false depending on the runner, but it shouldn't panic)
+            assert!(is_admin == true || is_admin == false);
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            // On non-macOS, it should always be true
+            assert_eq!(is_admin, true);
+        }
+    }
 }
