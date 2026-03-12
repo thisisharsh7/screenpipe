@@ -36,38 +36,48 @@ static MAGNIFY_APP_HANDLE: std::sync::OnceLock<tauri::AppHandle> = std::sync::On
 
 /// Call once during app setup to store the AppHandle for the magnify handler.
 #[cfg(target_os = "macos")]
+pub fn ensure_magnify_handler_class_registered() {
+    use objc::declare::ClassDecl;
+    use objc::runtime::{Class, Object, Sel};
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        if Class::get("ScreenpipeMagnifyHandler").is_none() {
+            let superclass = Class::get("NSObject").unwrap();
+            let mut decl = ClassDecl::new("ScreenpipeMagnifyHandler", superclass).unwrap();
+            extern "C" fn handle_magnify(_this: &Object, _sel: Sel, recognizer: *mut Object) {
+                with_autorelease_pool(|| unsafe {
+                    use objc::{msg_send, sel, sel_impl};
+                    let magnification: f64 = msg_send![recognizer, magnification];
+                    // Reset so next callback gives delta, not cumulative
+                    let _: () = msg_send![recognizer, setMagnification: 0.0f64];
+                    if let Some(app) = MAGNIFY_APP_HANDLE.get() {
+                        let _ = app.emit("native-magnify", magnification);
+                    }
+                });
+            }
+            unsafe {
+                use objc::{sel, sel_impl};
+                decl.add_method(
+                    sel!(handleMagnify:),
+                    handle_magnify as extern "C" fn(&Object, Sel, *mut Object),
+                );
+            }
+            decl.register();
+            info!("magnify gesture handler registered");
+        }
+    });
+}
+
+#[cfg(target_os = "macos")]
 pub fn init_magnify_handler(app: tauri::AppHandle) {
     use objc::declare::ClassDecl;
     use objc::runtime::{Class, Object, Sel};
 
     let _ = MAGNIFY_APP_HANDLE.set(app);
 
-    // Register ObjC class with handleMagnify: method (only once)
-    if Class::get("ScreenpipeMagnifyHandler").is_none() {
-        let superclass = Class::get("NSObject").unwrap();
-        let mut decl = ClassDecl::new("ScreenpipeMagnifyHandler", superclass).unwrap();
-        extern "C" fn handle_magnify(_this: &Object, _sel: Sel, recognizer: *mut Object) {
-            with_autorelease_pool(|| unsafe {
-                use objc::{msg_send, sel, sel_impl};
-                let magnification: f64 = msg_send![recognizer, magnification];
-                // Reset so next callback gives delta, not cumulative
-                let _: () = msg_send![recognizer, setMagnification: 0.0f64];
-                if let Some(app) = MAGNIFY_APP_HANDLE.get() {
-                    let _ = app.emit("native-magnify", magnification);
-                }
-            });
-        }
-        unsafe {
-            use objc::{sel, sel_impl};
-            decl.add_method(
-                sel!(handleMagnify:),
-                handle_magnify as extern "C" fn(&Object, Sel, *mut Object),
-            );
-        }
-        decl.register();
-    }
-
-    info!("magnify gesture handler registered");
+    ensure_magnify_handler_class_registered();
 
     // Register a custom ObjC class that handles scrollWheel forwarding.
     // WKWebView in standard WebviewWindows (e.g. settings) consumes trackpad
@@ -160,11 +170,15 @@ unsafe fn attach_magnify_gesture_to_view(view: tauri_nspanel::cocoa::base::id) {
             return;
         }
 
+        ensure_magnify_handler_class_registered();
+
         // Check if we already added our recognizer (look for ScreenpipeMagnifyHandler target)
         let recognizers: id = msg_send![view, gestureRecognizers];
+        
+        let handler_class = class!(ScreenpipeMagnifyHandler);
+
         if recognizers != nil {
             let count: u64 = NSArray::count(recognizers);
-            let handler_class = class!(ScreenpipeMagnifyHandler);
             for i in 0..count {
                 let r: id = NSArray::objectAtIndex(recognizers, i);
                 let target: id = msg_send![r, target];
@@ -178,7 +192,6 @@ unsafe fn attach_magnify_gesture_to_view(view: tauri_nspanel::cocoa::base::id) {
         }
 
         // Create handler instance
-        let handler_class = class!(ScreenpipeMagnifyHandler);
         let handler: id = msg_send![handler_class, new];
 
         // Create NSMagnificationGestureRecognizer
@@ -2189,5 +2202,22 @@ impl ShowRewindWindow {
             window.set_size(size).ok();
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn test_ensure_magnify_handler_class_registered() {
+        // This should not panic if called multiple times
+        ensure_magnify_handler_class_registered();
+        ensure_magnify_handler_class_registered();
+
+        // The class should be registered now
+        let handler_class = objc::runtime::Class::get("ScreenpipeMagnifyHandler");
+        assert!(handler_class.is_some(), "ScreenpipeMagnifyHandler should be registered");
     }
 }
