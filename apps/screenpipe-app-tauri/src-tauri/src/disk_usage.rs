@@ -46,6 +46,8 @@ pub struct DiskUsedByOther {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CachedDiskUsage {
     pub timestamp: i64,
+    #[serde(default)]
+    pub path: String,
     pub usage: DiskUsage,
 }
 
@@ -121,12 +123,16 @@ pub async fn disk_usage(
             } else if let Ok(cached) = serde_json::from_str::<CachedDiskUsage>(&content) {
                 let now = chrono::Local::now().timestamp();
                 let one_hour = 60 * 60; // 1 hour cache (reduced from 2 days)
-                if now - cached.timestamp < one_hour {
+                let current_path = screenpipe_dir.to_string_lossy().to_string();
+                
+                if cached.path == current_path && now - cached.timestamp < one_hour {
                     info!(
-                        "Using cached disk usage data (age: {}s)",
-                        now - cached.timestamp
+                        "Using cached disk usage data (age: {}s) for path: {}",
+                        now - cached.timestamp, current_path
                     );
                     return Ok(Some(cached.usage));
+                } else if cached.path != current_path {
+                    info!("Cache path mismatch (cached: {}, current: {}), recalculating...", cached.path, current_path);
                 }
             }
         }
@@ -359,6 +365,7 @@ pub async fn disk_usage(
     // Cache the result
     let cached = CachedDiskUsage {
         timestamp: chrono::Local::now().timestamp(),
+        path: screenpipe_dir.to_string_lossy().to_string(),
         usage: disk_usage.clone(),
     };
 
@@ -372,4 +379,19 @@ pub async fn disk_usage(
     }
 
     Ok(Some(disk_usage))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_readable_size() {
+        assert_eq!(readable(0), "0 KB");
+        assert_eq!(readable(500), "500 B");
+        assert_eq!(readable(1024), "1.0 KB");
+        assert_eq!(readable(1048576), "1.0 MB");
+        assert_eq!(readable(1073741824), "1.00 GB");
+        assert_eq!(readable(1099511627776), "1.00 TB");
+    }
 }
