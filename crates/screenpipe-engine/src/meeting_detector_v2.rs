@@ -1095,14 +1095,14 @@ const DEFAULT_SCAN_INTERVAL: Duration = Duration::from_secs(5);
 /// 2. Scans their AX trees for call control signals (on a blocking thread)
 /// 3. Advances the state machine
 /// 4. Persists state changes to the database
-/// 5. Syncs the in-meeting flag to the old `MeetingDetector` for audio pipeline compat
+/// 5. Syncs the in-meeting flag to the `MeetingDetector` for audio pipeline compat
 pub async fn run_meeting_detection_loop(
     db: Arc<DatabaseManager>,
     in_meeting_flag: Arc<AtomicBool>,
     manual_meeting: Arc<tokio::sync::RwLock<Option<i64>>>,
     mut shutdown_rx: broadcast::Receiver<()>,
     scan_interval: Option<Duration>,
-    old_detector: Option<Arc<screenpipe_audio::meeting_detector::MeetingDetector>>,
+    detector: Option<Arc<screenpipe_audio::meeting_detector::MeetingDetector>>,
 ) {
     let profiles = load_detection_profiles();
     let scanner = Arc::new(MeetingUiScanner::new());
@@ -1140,7 +1140,7 @@ pub async fn run_meeting_detection_loop(
                         }
                     }
                 }
-                sync_meeting_flag(false, &in_meeting_flag, &old_detector);
+                sync_meeting_flag(false, &in_meeting_flag, &detector);
                 return;
             }
         }
@@ -1184,7 +1184,7 @@ pub async fn run_meeting_detection_loop(
             sync_meeting_flag(
                 matches!(state, MeetingState::Active { .. }),
                 &in_meeting_flag,
-                &old_detector,
+                &detector,
             );
             continue;
         }
@@ -1268,15 +1268,9 @@ pub async fn run_meeting_detection_loop(
                         };
                     }
 
-                    // Try calendar enrichment (best-effort, don't block on failure)
-                    if meeting_id >= 0 {
-                        enrich_with_calendar(
-                            &db,
-                            meeting_id,
-                            old_detector.as_ref().map(|d| d.as_ref()),
-                        )
-                        .await;
-                    }
+                    // Calendar enrichment removed — the old MeetingDetector
+                    // no longer holds calendar state. Can be re-added when
+                    // calendar events are stored in the DB.
                 }
                 StateAction::EndMeeting { meeting_id } => {
                     if meeting_id >= 0 {
@@ -1301,7 +1295,7 @@ pub async fn run_meeting_detection_loop(
 
         // 5. Sync the in_meeting flag
         let currently_in_meeting = matches!(state, MeetingState::Active { .. });
-        sync_meeting_flag(currently_in_meeting, &in_meeting_flag, &old_detector);
+        sync_meeting_flag(currently_in_meeting, &in_meeting_flag, &detector);
     }
 }
 
@@ -1388,14 +1382,14 @@ fn handle_no_apps_running(state: MeetingState) -> (MeetingState, Option<i64>) {
     }
 }
 
-/// Sync the in-meeting flag to both the shared AtomicBool and the old detector's v2 override.
+/// Sync the in-meeting flag to both the shared AtomicBool and the detector's v2 override.
 fn sync_meeting_flag(
     in_meeting: bool,
     flag: &AtomicBool,
-    old_detector: &Option<Arc<screenpipe_audio::meeting_detector::MeetingDetector>>,
+    detector: &Option<Arc<screenpipe_audio::meeting_detector::MeetingDetector>>,
 ) {
     flag.store(in_meeting, Ordering::Relaxed);
-    if let Some(ref det) = old_detector {
+    if let Some(ref det) = detector {
         det.set_v2_in_meeting(in_meeting);
     }
 }
@@ -1411,52 +1405,6 @@ async fn insert_new_meeting(db: &DatabaseManager, app: &str) -> i64 {
             error!("meeting v2: failed to insert meeting: {}", e);
             -1
         }
-    }
-}
-
-/// Try to enrich a meeting with calendar data from the old MeetingDetector.
-///
-/// The calendar bridge feeds calendar events into the old detector. We query
-/// `calendar_context()` to get the current calendar info and attach it to the
-/// meeting record. This is best-effort — failures are logged but don't block.
-async fn enrich_with_calendar(
-    db: &DatabaseManager,
-    meeting_id: i64,
-    old_detector: Option<&screenpipe_audio::meeting_detector::MeetingDetector>,
-) {
-    let Some(detector) = old_detector else {
-        debug!("meeting v2: no old detector for calendar enrichment");
-        return;
-    };
-
-    if let Some(cal_ctx) = detector.calendar_context().await {
-        let attendees_str = cal_ctx.attendees.join(", ");
-        if let Err(e) = db
-            .update_meeting(
-                meeting_id,
-                None, // don't change start time
-                None, // don't change end time
-                Some(&cal_ctx.title),
-                Some(&attendees_str),
-                None, // don't change app
-            )
-            .await
-        {
-            warn!(
-                "meeting v2: failed to enrich meeting {} with calendar data: {}",
-                meeting_id, e
-            );
-        } else {
-            info!(
-                "meeting v2: enriched meeting {} with calendar: '{}'",
-                meeting_id, cal_ctx.title
-            );
-        }
-    } else {
-        debug!(
-            "meeting v2: no overlapping calendar event for meeting {}",
-            meeting_id
-        );
     }
 }
 
