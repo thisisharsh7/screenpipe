@@ -95,6 +95,11 @@ pub struct MeetingDetector {
     last_app_meeting_epoch_ms: AtomicI64,
     /// Whether a calendar-based meeting is currently active (lock-free cache)
     in_calendar_meeting: AtomicBool,
+    /// Override flag set by the v2 meeting detection system.
+    /// When true, `is_in_meeting()` returns true regardless of v1 state.
+    /// This allows the v2 UI-scanning detector to drive the audio pipeline's
+    /// meeting-aware behavior without modifying v1 internals.
+    v2_override: AtomicBool,
 }
 
 struct MeetingState {
@@ -237,6 +242,7 @@ impl MeetingDetector {
             was_audio_meeting: AtomicBool::new(false),
             last_app_meeting_epoch_ms: AtomicI64::new(0),
             in_calendar_meeting: AtomicBool::new(false),
+            v2_override: AtomicBool::new(false),
         }
     }
 
@@ -438,7 +444,23 @@ impl MeetingDetector {
     /// 1. App-based detection (always standalone)
     /// 2. Calendar-based detection (calendar event with 2+ attendees + any audio)
     /// 3. Audio-based extension (bidirectional speech + recent app confirmation)
+    /// Set the v2 override flag. Called by the v2 meeting detection loop.
+    pub fn set_v2_in_meeting(&self, in_meeting: bool) {
+        self.v2_override.store(in_meeting, Ordering::Relaxed);
+    }
+
+    /// Get the v2 override flag reference (AtomicBool) for direct access
+    /// from the v2 detection loop.
+    pub fn v2_override_flag(&self) -> &AtomicBool {
+        &self.v2_override
+    }
+
     pub fn is_in_meeting(&self) -> bool {
+        // 0. v2 UI-scanning override takes priority
+        if self.v2_override.load(Ordering::Relaxed) {
+            return true;
+        }
+
         // 1. App-based detection
         let app_meeting = self.in_meeting.load(Ordering::Relaxed);
         if app_meeting {

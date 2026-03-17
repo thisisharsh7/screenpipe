@@ -1020,6 +1020,18 @@ async fn main() -> anyhow::Result<()> {
         .as_ref()
         .map(|detector| screenpipe_engine::start_calendar_bridge(detector.clone()));
 
+    // Start v2 meeting detection (UI scanning replaces app-focus-based detection)
+    let _meeting_watcher_v2_handle = meeting_detector.as_ref().map(|detector| {
+        let v2_in_meeting = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        screenpipe_engine::start_meeting_watcher_v2(
+            db.clone(),
+            v2_in_meeting,
+            manual_meeting.clone(),
+            shutdown_tx.subscribe(),
+            Some(detector.clone()),
+        )
+    });
+
     // Start calendar-assisted speaker identification
     let _speaker_id_handle = start_speaker_identification(db.clone(), config.user_name.clone());
 

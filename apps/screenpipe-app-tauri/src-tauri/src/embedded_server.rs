@@ -378,6 +378,17 @@ pub async fn start_embedded_server(
         // Bridge calendar events from event bus into meeting detector
         let _calendar_bridge = screenpipe_engine::start_calendar_bridge(detector.clone());
         info!("calendar bridge started for meeting detection");
+
+        // Start v2 meeting detection (UI scanning replaces app-focus-based detection)
+        let v2_in_meeting = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let _meeting_watcher_v2 = screenpipe_engine::start_meeting_watcher_v2(
+            db.clone(),
+            v2_in_meeting,
+            manual_meeting.clone(),
+            shutdown_tx.subscribe(),
+            Some(detector.clone()),
+        );
+        info!("meeting watcher v2 started (UI scanning)");
     }
 
     // Start calendar-assisted speaker identification
