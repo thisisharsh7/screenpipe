@@ -62,7 +62,7 @@ pub fn advertise(port: u16) -> Result<(), String> {
     let hostname = get_hostname();
 
     // Instance name must be unique on the network
-    let instance_name = format!("{}", hostname);
+    let instance_name = hostname.to_string();
 
     let service = ServiceInfo::new(
         SERVICE_TYPE,
