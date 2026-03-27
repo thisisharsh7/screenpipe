@@ -366,6 +366,7 @@ impl RecordArgs {
     }
 
     /// Build a `RecordingSettings` from CLI arguments.
+    #[allow(deprecated)]
     pub fn to_recording_settings(&self) -> screenpipe_config::RecordingSettings {
         let engine_str = cli_engine_to_str(&self.audio_transcription_engine);
         let mode_str = match self.transcription_mode {
