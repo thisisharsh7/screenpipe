@@ -1,0 +1,5 @@
+✅ Triage complete.
+1. Triaged multiple issues. Picked highest confidence: #2496 bug: Windows URL detection spams Sentry with 'failed to find edit bar: Operation completed successfully'
+2. Changed error! to debug! in `crates/screenpipe-screen/src/browser_utils/windows.rs` and returned Ok(None).
+3. Added a basic instantiation test inside the module.
+4. Created PR #2513.

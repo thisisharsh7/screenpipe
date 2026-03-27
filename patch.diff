@@ -1,0 +1,67 @@
+--- apps/screenpipe-app-tauri/src-tauri/src/window_api.rs
++++ apps/screenpipe-app-tauri/src-tauri/src/window_api.rs
+@@ -37,12 +37,11 @@
+ #[cfg(target_os = "macos")]
+ static MAGNIFY_APP_HANDLE: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
+ 
+-/// Call once during app setup to store the AppHandle for the magnify handler.
+ #[cfg(target_os = "macos")]
+-pub fn init_magnify_handler(app: tauri::AppHandle) {
++pub fn register_objc_classes() {
++    static REGISTER_ONCE: std::sync::Once = std::sync::Once::new();
+     use objc::declare::ClassDecl;
+     use objc::runtime::{Class, Object, Sel};
+-
+-    let _ = MAGNIFY_APP_HANDLE.set(app);
+ 
+-    // Register ObjC class with handleMagnify: method (only once)
+-    if Class::get("ScreenpipeMagnifyHandler").is_none() {
++    REGISTER_ONCE.call_once(|| {
++        // Register ObjC class with handleMagnify: method
+         let superclass = Class::get("NSObject").unwrap();
+         let mut decl = ClassDecl::new("ScreenpipeMagnifyHandler", superclass).unwrap();
+         extern "C" fn handle_magnify(_this: &Object, _sel: Sel, recognizer: *mut Object) {
+@@ -69,12 +68,11 @@
+         decl.register();
+-    }
+ 
+-    info!("magnify gesture handler registered");
++        info!("magnify gesture handler registered");
+ 
+-    // Register a custom ObjC class that handles scrollWheel forwarding.
+-    // WKWebView in standard WebviewWindows (e.g. settings) consumes trackpad
+-    // wheel events at the native level — they never reach JavaScript.
+-    // We swizzle WKWebView's scrollWheel: to also emit "native-scroll" Tauri
+-    // events so the JS timeline code can handle scroll navigation.
+-    if Class::get("ScreenpipeScrollInterceptor").is_none() {
++        // Register a custom ObjC class that handles scrollWheel forwarding.
++        // WKWebView in standard WebviewWindows (e.g. settings) consumes trackpad
++        // wheel events at the native level — they never reach JavaScript.
++        // We swizzle WKWebView's scrollWheel: to also emit "native-scroll" Tauri
++        // events so the JS timeline code can handle scroll navigation.
+         // Store original IMP so we can call it after emitting
+         static ORIGINAL_SCROLL_WHEEL: std::sync::OnceLock<
+@@ -142,6 +140,13 @@
+         let decl = ClassDecl::new("ScreenpipeScrollInterceptor", superclass).unwrap();
+         decl.register();
+-    }
++    });
++}
++
++/// Call once during app setup to store the AppHandle for the magnify handler.
++#[cfg(target_os = "macos")]
++pub fn init_magnify_handler(app: tauri::AppHandle) {
++    let _ = MAGNIFY_APP_HANDLE.set(app);
++    register_objc_classes();
+ }
+ 
+ #[cfg(not(target_os = "macos"))]
+@@ -165,6 +170,8 @@
+         }
+ 
++        // Ensure the handler class is registered before attempting to get it
++        register_objc_classes();
++
+         // Check if we already added our recognizer (look for ScreenpipeMagnifyHandler target)
+         let recognizers: id = msg_send![view, gestureRecognizers];
+         if recognizers != nil {

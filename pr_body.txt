@@ -1,0 +1,17 @@
+Fixes #2496 
+Fixes #2503
+
+### Description
+- **#2496 (Windows URL detector spam):** Changed UIAutomation `find_first` missing edit bar to log at `debug!` and return `Ok(None)`. It's expected behavior for background/uninitialized processes and spams Sentry.
+- **#2503 (Snapshot compaction loop error):** Caught "no such column" on `snapshot_path` fetch in `run_compaction_cycle`. If the DB misses the migration, it will now gracefully skip compaction rather than panicking in an infinite background loop. Added a unit test simulating a missing `snapshot_path` column to prove it safely handles the error.
+
+### Evidence
+Unit test passes locally for the compaction cycle graceful degradation:
+```bash
+cargo test -p screenpipe-engine --lib test_run_compaction_cycle_missing_column
+...
+running 1 test
+test snapshot_compaction::tests::test_run_compaction_cycle_missing_column ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 175 filtered out; finished in 0.05s
+```

@@ -1,0 +1,26 @@
+@@ -19,6 +19,25 @@
+ use std::sync::atomic::{AtomicBool, Ordering};
+ use tauri_plugin_updater::UpdaterExt;
+ 
++use std::sync::OnceLock;
++
++fn is_macos_admin() -> bool {
++    #[cfg(target_os = "macos")]
++    {
++        static IS_ADMIN: OnceLock<bool> = OnceLock::new();
++        *IS_ADMIN.get_or_init(|| {
++            if let Ok(output) = std::process::Command::new("id").arg("-Gn").output() {
++                let groups = String::from_utf8_lossy(&output.stdout);
++                groups.split_whitespace().any(|g| g == "admin")
++            } else {
++                true // Fallback to true to not break updates if `id` fails
++            }
++        })
++    }
++    #[cfg(not(target_os = "macos"))]
++    true
++}
++
+ fn is_enterprise_build(app: &tauri::AppHandle) -> bool {
+     cfg!(feature = "enterprise-build")
+ }

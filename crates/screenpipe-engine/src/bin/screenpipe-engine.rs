@@ -501,14 +501,21 @@ async fn main() -> anyhow::Result<()> {
                 extern "C" {
                     fn CGRequestScreenCaptureAccess() -> bool;
                 }
-                unsafe { CGRequestScreenCaptureAccess(); }
+                unsafe {
+                    CGRequestScreenCaptureAccess();
+                }
             }
             if need_audio {
-                if let Ok(status) = av::CaptureDevice::authorization_status_for_media_type(av::MediaType::audio()) {
+                if let Ok(status) =
+                    av::CaptureDevice::authorization_status_for_media_type(av::MediaType::audio())
+                {
                     if status == av::AuthorizationStatus::NotDetermined {
                         // Fire-and-forget: triggers the native "Allow microphone" dialog
                         let mut block = cidre::blocks::SendBlock::new1(|_granted: bool| {});
-                        let _ = av::CaptureDevice::request_access_for_media_type_ch(av::MediaType::audio(), &mut block);
+                        let _ = av::CaptureDevice::request_access_for_media_type_ch(
+                            av::MediaType::audio(),
+                            &mut block,
+                        );
                     }
                 }
             }
@@ -524,8 +531,12 @@ async fn main() -> anyhow::Result<()> {
                 let audio_ok = !need_audio || perms.microphone.is_granted();
 
                 if screen_ok && audio_ok {
-                    if need_screen { eprintln!("  screen recording: ok"); }
-                    if need_audio { eprintln!("  microphone: ok"); }
+                    if need_screen {
+                        eprintln!("  screen recording: ok");
+                    }
+                    if need_audio {
+                        eprintln!("  microphone: ok");
+                    }
                     if perms.accessibility.is_granted() {
                         eprintln!("  accessibility: ok");
                     } else {
@@ -546,7 +557,10 @@ async fn main() -> anyhow::Result<()> {
                     printed_waiting = true;
                     let terminal = permissions::detect_terminal();
                     if !screen_ok {
-                        eprintln!("  screen recording: waiting — grant access to \"{}\"", terminal);
+                        eprintln!(
+                            "  screen recording: waiting — grant access to \"{}\"",
+                            terminal
+                        );
                     }
                     if !audio_ok {
                         eprintln!("  microphone: waiting — grant access to \"{}\"", terminal);

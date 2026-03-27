@@ -1,0 +1,109 @@
+    38	#[cfg(target_os = "macos")]
+    39	pub fn init_magnify_handler(app: tauri::AppHandle) {
+    40	    use objc::declare::ClassDecl;
+    41	    use objc::runtime::{Class, Object, Sel};
+    42	
+    43	    let _ = MAGNIFY_APP_HANDLE.set(app);
+    44	
+    45	    // Register ObjC class with handleMagnify: method (only once)
+    46	    if Class::get("ScreenpipeMagnifyHandler").is_none() {
+    47	        let superclass = Class::get("NSObject").unwrap();
+    48	        let mut decl = ClassDecl::new("ScreenpipeMagnifyHandler", superclass).unwrap();
+    49	        extern "C" fn handle_magnify(_this: &Object, _sel: Sel, recognizer: *mut Object) {
+    50	            with_autorelease_pool(|| unsafe {
+    51	                use objc::{msg_send, sel, sel_impl};
+    52	                let magnification: f64 = msg_send![recognizer, magnification];
+    53	                // Reset so next callback gives delta, not cumulative
+    54	                let _: () = msg_send![recognizer, setMagnification: 0.0f64];
+    55	                if let Some(app) = MAGNIFY_APP_HANDLE.get() {
+    56	                    let _ = app.emit("native-magnify", magnification);
+    57	                }
+    58	            });
+    59	        }
+    60	        unsafe {
+    61	            use objc::{sel, sel_impl};
+    62	            decl.add_method(
+    63	                sel!(handleMagnify:),
+    64	                handle_magnify as extern "C" fn(&Object, Sel, *mut Object),
+    65	            );
+    66	        }
+    67	        decl.register();
+    68	    }
+    69	
+    70	    info!("magnify gesture handler registered");
+    71	
+    72	    // Register a custom ObjC class that handles scrollWheel forwarding.
+    73	    // WKWebView in standard WebviewWindows (e.g. settings) consumes trackpad
+    74	    // wheel events at the native level — they never reach JavaScript.
+    75	    // We swizzle WKWebView's scrollWheel: to also emit "native-scroll" Tauri
+    76	    // events so the JS timeline code can handle scroll navigation.
+    77	    if Class::get("ScreenpipeScrollInterceptor").is_none() {
+    78	        // Store original IMP so we can call it after emitting
+    79	        static ORIGINAL_SCROLL_WHEEL: std::sync::OnceLock<
+    80	            extern "C" fn(&Object, Sel, *mut Object),
+    81	        > = std::sync::OnceLock::new();
+    82	
+    83	        extern "C" fn swizzled_scroll_wheel(this: &Object, sel: Sel, event: *mut Object) {
+    84	            with_autorelease_pool(|| unsafe {
+    85	                use objc::{msg_send, sel, sel_impl};
+    86	                // Emit Tauri event with scroll data
+    87	                if let Some(app) = MAGNIFY_APP_HANDLE.get() {
+    88	                    let delta_y: f64 = msg_send![event, scrollingDeltaY];
+    89	                    let delta_x: f64 = msg_send![event, scrollingDeltaX];
+    90	                    let modifier_flags: u64 = msg_send![event, modifierFlags];
+    91	                    let ctrl_key = (modifier_flags & (1 << 18)) != 0;
+    92	                    let meta_key = (modifier_flags & (1 << 20)) != 0;
+    93	
+    94	                    let _ = app.emit(
+    95	                        "native-scroll",
+    96	                        serde_json::json!({
+    97	                            "deltaX": delta_x,
+    98	                            "deltaY": delta_y,
+    99	                            "ctrlKey": ctrl_key,
+   100	                            "metaKey": meta_key,
+   101	                        }),
+   102	                    );
+   103	                }
+   104	                // Always call the original scrollWheel: so native CSS
+   105	                // overflow scrolling keeps working in all windows.
+   106	                // The native-scroll Tauri event is emitted above for
+   107	                // timeline/search components that need it.
+   108	                if let Some(original) = ORIGINAL_SCROLL_WHEEL.get() {
+   109	                    original(this, sel, event);
+   110	                }
+   111	            });
+   112	        }
+   113	
+   114	        // Swizzle WKWebView scrollWheel:
+   115	        unsafe {
+   116	            use objc::runtime::{
+   117	                class_getInstanceMethod, method_getImplementation, method_setImplementation,
+   118	            };
+   119	            use objc::{sel, sel_impl};
+   120	
+   121	            let wk_class = Class::get("WKWebView");
+   122	            if let Some(wk_class) = wk_class {
+   123	                let scroll_sel = sel!(scrollWheel:);
+   124	                let method = class_getInstanceMethod(wk_class as *const _ as *mut _, scroll_sel);
+   125	                if !method.is_null() {
+   126	                    let original_imp = method_getImplementation(method as *const _);
+   127	                    let original_fn: extern "C" fn(&Object, Sel, *mut Object) =
+   128	                        std::mem::transmute(original_imp);
+   129	                    let _ = ORIGINAL_SCROLL_WHEEL.set(original_fn);
+   130	
+   131	                    let new_imp: objc::runtime::Imp = std::mem::transmute(
+   132	                        swizzled_scroll_wheel as extern "C" fn(&Object, Sel, *mut Object),
+   133	                    );
+   134	                    method_setImplementation(method as *mut _, new_imp);
+   135	                    info!("WKWebView scrollWheel: swizzled for native-scroll events");
+   136	                }
+   137	            }
+   138	        }
+   139	
+   140	        // Register dummy class so we don't re-swizzle
+   141	        let superclass = Class::get("NSObject").unwrap();
+   142	        let decl = ClassDecl::new("ScreenpipeScrollInterceptor", superclass).unwrap();
+   143	        decl.register();
+   144	    }
+   145	}
+   146	

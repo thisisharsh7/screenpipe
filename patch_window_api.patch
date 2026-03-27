@@ -1,0 +1,88 @@
+--- apps/screenpipe-app-tauri/src-tauri/src/window_api.rs
++++ apps/screenpipe-app-tauri/src-tauri/src/window_api.rs
+@@ -43,28 +43,10 @@
+     let _ = MAGNIFY_APP_HANDLE.set(app);
+ 
+-    // Register ObjC class with handleMagnify: method (only once)
+-    if Class::get("ScreenpipeMagnifyHandler").is_none() {
+-        let superclass = Class::get("NSObject").unwrap();
+-        let mut decl = ClassDecl::new("ScreenpipeMagnifyHandler", superclass).unwrap();
+-        extern "C" fn handle_magnify(_this: &Object, _sel: Sel, recognizer: *mut Object) {
+-            with_autorelease_pool(|| unsafe {
+-                use objc::{msg_send, sel, sel_impl};
+-                let magnification: f64 = msg_send![recognizer, magnification];
+-                // Reset so next callback gives delta, not cumulative
+-                let _: () = msg_send![recognizer, setMagnification: 0.0f64];
+-                if let Some(app) = MAGNIFY_APP_HANDLE.get() {
+-                    let _ = app.emit("native-magnify", magnification);
+-                }
+-            });
+-        }
+-        unsafe {
+-            use objc::{sel, sel_impl};
+-            decl.add_method(
+-                sel!(handleMagnify:),
+-                handle_magnify as extern "C" fn(&Object, Sel, *mut Object),
+-            );
+-        }
+-        decl.register();
+-    }
+-
+-    info!("magnify gesture handler registered");
++    ensure_magnify_handler_class_registered();
+ 
+     // Register a custom ObjC class that handles scrollWheel forwarding.
+@@ -148,6 +130,36 @@
+ pub fn init_magnify_handler(_app: tauri::AppHandle) {}
+ 
++#[cfg(target_os = "macos")]
++pub fn ensure_magnify_handler_class_registered() {
++    use objc::declare::ClassDecl;
++    use objc::runtime::{Class, Object, Sel};
++    use std::sync::Once;
++
++    static INIT: Once = Once::new();
++    INIT.call_once(|| {
++        if Class::get("ScreenpipeMagnifyHandler").is_none() {
++            let superclass = Class::get("NSObject").unwrap();
++            let mut decl = ClassDecl::new("ScreenpipeMagnifyHandler", superclass).unwrap();
++            extern "C" fn handle_magnify(_this: &Object, _sel: Sel, recognizer: *mut Object) {
++                with_autorelease_pool(|| unsafe {
++                    use objc::{msg_send, sel, sel_impl};
++                    let magnification: f64 = msg_send![recognizer, magnification];
++                    let _: () = msg_send![recognizer, setMagnification: 0.0f64];
++                    if let Some(app) = MAGNIFY_APP_HANDLE.get() {
++                        let _ = app.emit("native-magnify", magnification);
++                    }
++                });
++            }
++            unsafe {
++                use objc::{sel, sel_impl};
++                decl.add_method(
++                    sel!(handleMagnify:),
++                    handle_magnify as extern "C" fn(&Object, Sel, *mut Object),
++                );
++            }
++            decl.register();
++            info!("magnify gesture handler registered");
++        }
++    });
++}
++
+ /// Attach an NSMagnificationGestureRecognizer to the given view.
+ /// Safe to call multiple times — skips if already attached.
+@@ -161,11 +173,10 @@
+         }
+ 
++        ensure_magnify_handler_class_registered();
++
+         // Check if we already added our recognizer (look for ScreenpipeMagnifyHandler target)
+         let recognizers: id = msg_send![view, gestureRecognizers];
+         
+-        let handler_class = match objc::runtime::Class::get("ScreenpipeMagnifyHandler") {
+-            Some(cls) => cls,
+-            None => return, // Class not registered yet, wait for init_magnify_handler
+-        };
++        let handler_class = objc::class!(ScreenpipeMagnifyHandler);
+ 
+         if recognizers != nil {

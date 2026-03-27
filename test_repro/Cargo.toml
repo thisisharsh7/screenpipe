@@ -1,0 +1,10 @@
+[package]
+name = "test_repro"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+screenpipe-db = { path = "../crates/screenpipe-db" }
+chrono = "0.4"
+[workspace]
