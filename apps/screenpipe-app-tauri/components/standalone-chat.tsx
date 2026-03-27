@@ -532,7 +532,7 @@ function MarkdownBlock({ text, isUser }: { text: string; isUser: boolean }) {
           return <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>;
         },
         a({ href, children, ...props }) {
-          const isMediaLink = href?.toLowerCase().match(/\.(mp4|mp3|wav|webm)$/);
+          const isMediaLink = href && /(?:(?:\/[^\n`"':]+)+|[A-Z]:\\[^\n`"':]+)\.(mp4|webm|mp3|wav|m4a|mov)/i.test(href);
           if (isMediaLink && href) {
             return <VideoComponent filePath={href} className="my-2" />;
           }
@@ -592,7 +592,7 @@ function MarkdownBlock({ text, isUser }: { text: string; isUser: boolean }) {
         },
         code({ className, children, ...props }) {
           const content = String(children).replace(/\n$/, "");
-          const isMedia = content.trim().toLowerCase().match(/\.(mp4|mp3|wav|webm)$/);
+          const isMedia = /^(?:(?:\/[^\n`"':]+)+|[A-Z]:\\[^\n`"':]+)\.(mp4|webm|mp3|wav|m4a|mov)$/i.test(content.trim());
           const match = /language-(\w+)/.exec(className || "");
           const language = match?.[1] || "";
           const isCodeBlock = className?.includes("language-");

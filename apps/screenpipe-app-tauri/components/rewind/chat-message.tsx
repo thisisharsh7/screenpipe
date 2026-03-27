@@ -76,15 +76,14 @@ export function ChatMessage({ message, ...props }: ChatMessageProps) {
 		return content.replace(/<think>[\s\S]*?(<\/think>|$)/g, "").trim();
 	};
 
-	const hasMP4File = (content: string) =>
-		content.trim().toLowerCase().includes(".mp4");
+	const hasMP4File = (content: string) => {
+		return /(?:(?:\/[^\n`"':]+)+|[A-Z]:\\[^\n`"':]+)\.(mp4|webm|mp3|wav|m4a|mov)/i.test(content);
+	};
 
-	/** Extract the first absolute .mp4 path from a string that may contain surrounding text. */
+	/** Extract the first absolute media path from a string that may contain surrounding text. */
 	const extractMP4Path = (content: string): string => {
 		// Match absolute paths (may contain spaces, dashes, dots, etc.)
-		const match = content.match(/\/(?:[^\s/`]+ )*[^\s/`]+\.mp4/i)
-			|| content.match(/(?:\/[^\n`"':]+)+\.mp4/i)
-			|| content.match(/[A-Z]:\\[^\n`"':]+\.mp4/i); // Windows
+		const match = content.match(/(?:(?:\/[^\n`"':]+)+|[A-Z]:\\[^\n`"':]+)\.(mp4|webm|mp3|wav|m4a|mov)/i);
 		return match ? match[0].trim() : content.trim();
 	};
 
@@ -172,7 +171,7 @@ export function ChatMessage({ message, ...props }: ChatMessageProps) {
 							return <p className="mb-2 last:mb-0">{children}</p>;
 						},
 						a({ node, href, children, ...props }) {
-							const isMP4Link = href?.toLowerCase().includes(".mp4");
+							const isMP4Link = href && hasMP4File(href);
 
 							if (isMP4Link && href) {
 								return <VideoComponent filePath={extractMP4Path(href)} />;

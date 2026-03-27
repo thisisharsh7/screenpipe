@@ -29,9 +29,9 @@ export const VideoComponent = memo(function VideoComponent({
   const sanitizeFilePath = useCallback((path: string): string => {
     let cleaned = path.replace(/^["']|["']$/g, "").trim();
 
-    // Extract .mp4 path if surrounded by extra text
-    const unixMatch = cleaned.match(/(?:\/[^\n`"':]+)+\.mp4/i);
-    const winMatch = cleaned.match(/[A-Z]:\\[^\n`"':]+\.mp4/i);
+    // Extract media path if surrounded by extra text
+    const unixMatch = cleaned.match(/(?:\/[^\n`"':]+)+\.(mp4|webm|mp3|wav|m4a|mov)/i);
+    const winMatch = cleaned.match(/[A-Z]:\\[^\n`"':]+\.(mp4|webm|mp3|wav|m4a|mov)/i);
     if (unixMatch) cleaned = unixMatch[0].trim();
     else if (winMatch) cleaned = winMatch[0].trim();
 
