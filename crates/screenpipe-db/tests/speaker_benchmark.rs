@@ -643,6 +643,7 @@ mod speaker_benchmark {
         let mut results: Vec<(ClusterResult, Score)> = Vec::new();
 
         // Current system baseline
+        #[allow(clippy::single_element_loop)]
         for &t in &[0.50] {
             let r = strategy_current(&data.embeddings, t);
             let s = score_result(&r, &data.speakers, &data.embeddings, &data.temporal_windows);

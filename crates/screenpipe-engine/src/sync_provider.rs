@@ -457,6 +457,7 @@ impl ScreenpipeSyncProvider {
     /// sync imports are interleaved fairly with vision/audio writes instead
     /// of holding the SQLite write lock for the entire batch.
     /// Existence checks (SELECTs) use the read pool.
+    #[allow(clippy::type_complexity)]
     pub async fn import_chunk(&self, chunk: &SyncChunk) -> SyncResult<ImportResult> {
         let pool = &self.db.pool;
         let mut imported_frames = 0;

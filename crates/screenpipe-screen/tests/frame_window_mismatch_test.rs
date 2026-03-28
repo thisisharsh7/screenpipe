@@ -1,3 +1,4 @@
+#![allow(warnings)]
 //! Test to reproduce the frame-window mismatch issue
 //!
 //! The bug: Multiple database records (one per window) are created per capture cycle,

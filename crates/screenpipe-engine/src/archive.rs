@@ -135,6 +135,7 @@ pub struct ArchiveStatusResponse {
 // ============================================================================
 
 /// POST /archive/init — initialize the archive system.
+#[allow(clippy::type_complexity)]
 pub async fn archive_init(
     State(state): State<Arc<AppState>>,
     Json(request): Json<ArchiveInitRequest>,
@@ -244,6 +245,7 @@ pub async fn archive_init(
 }
 
 /// POST /archive/configure — update retention or disable.
+#[allow(clippy::type_complexity)]
 pub async fn archive_configure(
     State(state): State<Arc<AppState>>,
     Json(request): Json<ArchiveConfigureRequest>,
@@ -305,6 +307,7 @@ pub async fn archive_configure(
 }
 
 /// POST /archive/run — trigger an immediate archive run.
+#[allow(clippy::type_complexity)]
 pub async fn archive_run(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
@@ -330,6 +333,7 @@ pub async fn archive_run(
 }
 
 /// GET /archive/status — return current state.
+#[allow(clippy::type_complexity)]
 pub async fn archive_status(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ArchiveStatusResponse>, (StatusCode, Json<Value>)> {

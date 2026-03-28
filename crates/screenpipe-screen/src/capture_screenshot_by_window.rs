@@ -1644,6 +1644,7 @@ mod tests {
     mod topmost_tests {
         use super::*;
 
+        #[allow(clippy::too_many_arguments)]
         fn make_window(
             pid: i32,
             layer: i32,

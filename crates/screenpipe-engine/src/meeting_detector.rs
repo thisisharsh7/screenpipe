@@ -650,6 +650,7 @@ impl MeetingUiScanner {
 /// Uses `PrecomputedSignal` to avoid per-signal `.to_lowercase()` allocations.
 /// Lowercases node title/desc/identifier ONCE per node, not once per signal.
 #[cfg(target_os = "macos")]
+#[allow(clippy::too_many_arguments)]
 fn walk_for_signals(
     elem: &cidre::ax::UiElement,
     signals: &[PrecomputedSignal],
@@ -781,15 +782,15 @@ fn check_signal_match(
 ) -> bool {
     match signal {
         CallSignal::AutomationId(id) => {
-            identifier.map_or(false, |ident| ident.eq_ignore_ascii_case(id))
+            identifier.is_some_and(|ident| ident.eq_ignore_ascii_case(id))
         }
-        CallSignal::AutomationIdContains(substr) => identifier.map_or(false, |ident| {
-            ident.to_lowercase().contains(&substr.to_lowercase())
-        }),
+        CallSignal::AutomationIdContains(substr) => {
+            identifier.is_some_and(|ident| ident.to_lowercase().contains(&substr.to_lowercase()))
+        }
         CallSignal::KeyboardShortcut(shortcut) => {
             let shortcut_lower = shortcut.to_lowercase();
-            let in_desc = desc.map_or(false, |d| d.to_lowercase().contains(&shortcut_lower));
-            let in_title = title.map_or(false, |t| t.to_lowercase().contains(&shortcut_lower));
+            let in_desc = desc.is_some_and(|d| d.to_lowercase().contains(&shortcut_lower));
+            let in_title = title.is_some_and(|t| t.to_lowercase().contains(&shortcut_lower));
             in_desc || in_title
         }
         CallSignal::RoleWithName {
@@ -800,8 +801,8 @@ fn check_signal_match(
                 return false;
             }
             let name_lower = name_contains.to_lowercase();
-            let in_title = title.map_or(false, |t| t.to_lowercase().contains(&name_lower));
-            let in_desc = desc.map_or(false, |d| d.to_lowercase().contains(&name_lower));
+            let in_title = title.is_some_and(|t| t.to_lowercase().contains(&name_lower));
+            let in_desc = desc.is_some_and(|d| d.to_lowercase().contains(&name_lower));
             in_title || in_desc
         }
         CallSignal::MenuBarItem { title_contains } => {
@@ -810,26 +811,26 @@ fn check_signal_match(
                 return false;
             }
             let needle = title_contains.to_lowercase();
-            title.map_or(false, |t| t.to_lowercase().contains(&needle))
+            title.is_some_and(|t| t.to_lowercase().contains(&needle))
         }
         CallSignal::MenuItemId(expected_id) => {
             // Match AXMenuItem by automation ID (Zoom's "onMuteAudio:" etc.)
             if role != "AXMenuItem" {
                 return false;
             }
-            identifier.map_or(false, |ident| ident == *expected_id)
+            identifier.is_some_and(|ident| ident == *expected_id)
         }
         CallSignal::NameContains(needle) => {
             let needle_lower = needle.to_lowercase();
-            let in_title = title.map_or(false, |t| t.to_lowercase().contains(&needle_lower));
-            let in_desc = desc.map_or(false, |d| d.to_lowercase().contains(&needle_lower));
+            let in_title = title.is_some_and(|t| t.to_lowercase().contains(&needle_lower));
+            let in_desc = desc.is_some_and(|d| d.to_lowercase().contains(&needle_lower));
             in_title || in_desc
         }
         CallSignal::WindowTitle { title_contains } => {
             // WindowTitle is checked separately against the root window element,
             // not during descendant walking. But handle it here for completeness.
             let needle = title_contains.to_lowercase();
-            title.map_or(false, |t| t.to_lowercase().contains(&needle))
+            title.is_some_and(|t| t.to_lowercase().contains(&needle))
         }
     }
 }
@@ -845,46 +846,46 @@ fn check_signal_match_precomputed(
 ) -> bool {
     match &ps.signal {
         CallSignal::AutomationId(id) => {
-            identifier_lower.map_or(false, |ident| ident.eq_ignore_ascii_case(id))
+            identifier_lower.is_some_and(|ident| ident.eq_ignore_ascii_case(id))
         }
         CallSignal::AutomationIdContains(_) => {
-            identifier_lower.map_or(false, |ident| ident.contains(&ps.lower[..]))
+            identifier_lower.is_some_and(|ident| ident.contains(&ps.lower[..]))
         }
         CallSignal::KeyboardShortcut(_) => {
-            let in_desc = desc_lower.map_or(false, |d| d.contains(&ps.lower[..]));
-            let in_title = title_lower.map_or(false, |t| t.contains(&ps.lower[..]));
+            let in_desc = desc_lower.is_some_and(|d| d.contains(&ps.lower[..]));
+            let in_title = title_lower.is_some_and(|t| t.contains(&ps.lower[..]));
             in_desc || in_title
         }
         CallSignal::RoleWithName { role: r, .. } => {
             if role != *r {
                 return false;
             }
-            let in_title = title_lower.map_or(false, |t| t.contains(&ps.lower[..]));
-            let in_desc = desc_lower.map_or(false, |d| d.contains(&ps.lower[..]));
+            let in_title = title_lower.is_some_and(|t| t.contains(&ps.lower[..]));
+            let in_desc = desc_lower.is_some_and(|d| d.contains(&ps.lower[..]));
             in_title || in_desc
         }
         CallSignal::MenuBarItem { .. } => {
             if role != "AXMenuBarItem" {
                 return false;
             }
-            title_lower.map_or(false, |t| t.contains(&ps.lower[..]))
+            title_lower.is_some_and(|t| t.contains(&ps.lower[..]))
         }
         CallSignal::MenuItemId(_) => {
             if role != "AXMenuItem" {
                 return false;
             }
-            identifier_lower.map_or(false, |ident| ident == &ps.lower[..])
+            identifier_lower.is_some_and(|ident| ident == &ps.lower[..])
         }
         CallSignal::NameContains(_) => {
             // Role-agnostic: match any element whose title or description contains the text
-            let in_title = title_lower.map_or(false, |t| t.contains(&ps.lower[..]));
-            let in_desc = desc_lower.map_or(false, |d| d.contains(&ps.lower[..]));
+            let in_title = title_lower.is_some_and(|t| t.contains(&ps.lower[..]));
+            let in_desc = desc_lower.is_some_and(|d| d.contains(&ps.lower[..]));
             in_title || in_desc
         }
         CallSignal::WindowTitle { .. } => {
             // Checked separately against root window element, not during tree walk.
             // But support it here for completeness (matches on title).
-            title_lower.map_or(false, |t| t.contains(&ps.lower[..]))
+            title_lower.is_some_and(|t| t.contains(&ps.lower[..]))
         }
     }
 }
@@ -942,7 +943,7 @@ fn get_ax_identifier(elem: &cidre::ax::UiElement) -> Option<String> {
     // Try AXIdentifier (native apps)
     let ident_name = cidre::cf::String::from_str("AXIdentifier");
     let ident_attr = cidre::ax::Attr::with_string(&ident_name);
-    if let Some(val) = get_ax_string_attr(elem, &ident_attr) {
+    if let Some(val) = get_ax_string_attr(elem, ident_attr) {
         if !val.is_empty() {
             return Some(val);
         }
@@ -951,7 +952,7 @@ fn get_ax_identifier(elem: &cidre::ax::UiElement) -> Option<String> {
     // Try AXDOMIdentifier (web content in browsers/Electron)
     let dom_ident_name = cidre::cf::String::from_str("AXDOMIdentifier");
     let dom_ident_attr = cidre::ax::Attr::with_string(&dom_ident_name);
-    if let Some(val) = get_ax_string_attr(elem, &dom_ident_attr) {
+    if let Some(val) = get_ax_string_attr(elem, dom_ident_attr) {
         if !val.is_empty() {
             return Some(val);
         }
@@ -1643,10 +1644,11 @@ pub fn find_running_meeting_apps(
                 }
 
                 // Check browser URL patterns — only if this is a browser
+                #[allow(clippy::collapsible_if)]
                 if !profile.app_identifiers.browser_url_patterns.is_empty()
                     && BROWSER_NAMES.iter().any(|b| name_lower.contains(b))
                 {
-                    if has_browser_meeting_url(pid, &profile.app_identifiers.browser_url_patterns) {
+                    if has_browser_meeting_url(pid, profile.app_identifiers.browser_url_patterns) {
                         results.push(RunningMeetingApp {
                             pid,
                             app_name: name.clone(),
@@ -1836,7 +1838,7 @@ pub fn find_running_meeting_apps(
                 .map(|p| p.name.to_lowercase());
             let is_browser = proc_name
                 .as_ref()
-                .map_or(false, |n| browser_process_names.iter().any(|b| n == *b));
+                .is_some_and(|n| browser_process_names.iter().any(|b| n == *b));
             if !is_browser {
                 continue;
             }
@@ -2100,7 +2102,7 @@ pub async fn run_meeting_detection_loop(
                 current_interval = IDLE_NO_APPS_SCAN_INTERVAL;
                 idle_scan_count += 1;
                 // Periodic summary every ~60s (2 cycles at 30s)
-                if idle_scan_count % 2 == 0 {
+                if idle_scan_count.is_multiple_of(2) {
                     debug!(
                         "meeting v2: idle, no meeting apps (scans={})",
                         idle_scan_count
@@ -2333,6 +2335,7 @@ async fn insert_new_meeting(db: &DatabaseManager, app: &str) -> i64 {
 // ============================================================================
 
 #[cfg(test)]
+#[allow(warnings)]
 mod tests {
     use super::*;
 

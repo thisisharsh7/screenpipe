@@ -716,6 +716,7 @@ fn resolve_capture_metadata(
 /// tree hash, the capture is skipped (content dedup). The returned
 /// `CaptureOutput.result` will be `None` in that case — the caller should still
 /// update the frame comparer with the image but skip DB/metrics work.
+#[allow(clippy::too_many_arguments)]
 async fn do_capture(
     db: &DatabaseManager,
     monitor: &SafeMonitor,

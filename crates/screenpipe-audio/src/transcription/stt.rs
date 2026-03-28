@@ -358,6 +358,7 @@ pub async fn process_audio_input(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_stt(
     segment: SpeechSegment,
     device: Arc<AudioDevice>,
