@@ -15,7 +15,7 @@
 use crate::ground_truth::{ScenarioManifest, SpeechSegment, TimelineEvent};
 use crate::metrics::{self, MeetingDetectionResult};
 
-use screenpipe_audio::core::device::DeviceType;
+
 use screenpipe_audio::meeting_detector::MeetingDetector;
 use std::collections::HashMap;
 

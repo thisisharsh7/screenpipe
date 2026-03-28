@@ -248,15 +248,13 @@ impl PipePermissions {
         // Default allowlist
         if self.use_default_allowlist {
             for pattern in DEFAULT_ALLOWED_ENDPOINTS {
-                if let Some(rule) = parse_bare_api(pattern) {
-                    if let PermissionRule::Api {
-                        method: rm,
-                        path: rp,
-                    } = &rule
-                    {
-                        if (rm == "*" || rm == &m) && glob_match(rp, path) {
-                            return true;
-                        }
+                if let Some(PermissionRule::Api {
+                    method: rm,
+                    path: rp,
+                }) = parse_bare_api(pattern).as_ref()
+                {
+                    if (rm == "*" || rm == &m) && glob_match(rp, path) {
+                        return true;
                     }
                 }
             }
@@ -853,6 +851,7 @@ mod tests {
     #[test]
     fn from_config_no_permissions() {
         let config = PipeConfig {
+            trigger: None,
             name: "test".to_string(),
             schedule: "manual".to_string(),
             enabled: true,
@@ -877,6 +876,7 @@ mod tests {
     #[test]
     fn from_config_reader_preset() {
         let config = PipeConfig {
+            trigger: None,
             name: "test".to_string(),
             schedule: "manual".to_string(),
             enabled: true,
@@ -901,6 +901,7 @@ mod tests {
     #[test]
     fn from_config_with_unified_rules() {
         let config = PipeConfig {
+            trigger: None,
             name: "test".to_string(),
             schedule: "manual".to_string(),
             enabled: true,
@@ -962,6 +963,7 @@ mod tests {
         // Set offline mode and verify it propagates to PipePermissions
         crate::offline::set_offline_mode(true);
         let config = PipeConfig {
+            trigger: None,
             name: "offline-test".to_string(),
             schedule: "manual".to_string(),
             enabled: true,
