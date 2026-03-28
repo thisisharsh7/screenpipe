@@ -71,26 +71,61 @@ pub fn setup_tray(app: &AppHandle, update_item: Option<&tauri::menu::MenuItem<Wr
         *guard = update_item.cloned();
     }
 
-    if let Some(main_tray) = app.tray_by_id("screenpipe_main") {
-        // Initial menu setup with empty state
-        let menu = create_dynamic_menu(app, &MenuState::default(), update_item)?;
-        // Keep a clone alive to prevent use-after-free (see PREVIOUS_TRAY_MENU doc).
-        if let Ok(mut guard) = PREVIOUS_TRAY_MENU.lock() {
-            *guard = Some(menu.clone());
+    let main_tray = if let Some(t) = app.tray_by_id("screenpipe_main") {
+        t
+    } else {
+        // Build tray dynamically (helps catch Linux appindicator panics)
+        let image_res = tauri::image::Image::from_path("assets/screenpipe-logo-tray-white.png");
+        let image = match image_res {
+            Ok(img) => img,
+            Err(e) => {
+                error!("failed to load tray image: {}", e);
+                return Ok(());
+            }
+        };
+
+        let app_safe = std::panic::AssertUnwindSafe(app.clone());
+        let res = std::panic::catch_unwind(move || {
+            TrayIconBuilder::with_id("screenpipe_main")
+                .tooltip("screenpipe")
+                .icon_as_template(true)
+                .show_menu_on_left_click(true)
+                .icon(image)
+                .build(&*app_safe)
+        });
+
+        match res {
+            Ok(Ok(t)) => t,
+            Ok(Err(e)) => {
+                error!("failed to build tray icon: {}", e);
+                return Ok(());
+            }
+            Err(_) => {
+                error!("panic building tray icon! (Linux missing appindicator library)");
+                return Ok(());
+            }
         }
-        main_tray.set_menu(Some(menu))?;
+    };
 
-        // Setup click handlers
-        setup_tray_click_handlers(&main_tray)?;
-
-        // Set autosaveName so macOS remembers position after user Cmd+drags it
-        set_autosave_name(&main_tray);
-
-        // Start menu updater only when we have an update item (not enterprise)
-        if let Some(item) = update_item {
-            setup_tray_menu_updater(app.clone(), item);
-        }
+    // Initial menu setup with empty state
+    let menu = create_dynamic_menu(app, &MenuState::default(), update_item)?;
+    // Keep a clone alive to prevent use-after-free (see PREVIOUS_TRAY_MENU doc).
+    if let Ok(mut guard) = PREVIOUS_TRAY_MENU.lock() {
+        *guard = Some(menu.clone());
     }
+    main_tray.set_menu(Some(menu))?;
+
+    // Setup click handlers
+    setup_tray_click_handlers(&main_tray)?;
+
+    // Set autosaveName so macOS remembers position after user Cmd+drags it
+    set_autosave_name(&main_tray);
+
+    // Start menu updater only when we have an update item (not enterprise)
+    if let Some(item) = update_item {
+        setup_tray_menu_updater(app.clone(), item);
+    }
+    
     Ok(())
 }
 
