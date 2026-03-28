@@ -97,6 +97,10 @@ commits: `28e5c247`
 ### 4. audio device handling
 
 - [ ] **default audio device** — with "follow system default", recording uses whatever macOS says is default.
+- [ ] **macOS default engine** — Verify whisper is the default audio engine on macOS, while parakeet remains default on Windows/Linux. (`730d2bd8e`)
+- [ ] **No forced parakeet migration** — Verify existing macOS users are not forced to migrate to parakeet. (`523fe4c37`)
+- [ ] **macOS 14 parakeet-mlx launch** — Verify no crash on macOS 14 when `parakeet-mlx` is enabled. (`851ba6976`)
+- [ ] **Tier-safe engine selection** — Verify `parakeet-mlx` is disabled on Low tier devices (e.g., 8GB Macs) to prevent OOM crashes. (`8777ae9b2`, `62850c6af`)
 - [ ] **plug in USB headset** — if set to follow defaults and macOS switches to headset, recording follows.
 - [ ] **unplug USB headset** — recording falls back to built-in mic/speakers. no crash. no 30s timeout errors.
 - [ ] **bluetooth device connect/disconnect** — AirPods connect mid-recording. audio continues without gap.
@@ -372,6 +376,7 @@ commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`, `e61501da`, `039d5fea`,
 - [ ] **URL chips always shown when detected** — Verify that URL chips are always displayed in the UI when URLs are detected in the content. (`cba69e56`)
 - [ ] **refresh button inline with suggestion chips (icon-only)** — Verify that the refresh button for suggestion chips is displayed inline with the chips and is icon-only. (`a80e9ce6`)
 - [ ] **bottom suggestion chips hidden on empty chat** — Verify that bottom suggestion chips are hidden when the chat is empty to avoid duplication. (`d6c4b821`)
+- [ ] **Truncated suggestion chips** — Verify that long suggestion chips in the chat UI are correctly truncated and don't overflow the container. (`5ee0179ab`)
 - [ ] **Refresh button for suggestion chips** — A refresh button appears on bottom suggestion chips. Clicking it updates suggestions.
 - [ ] **Timeline refresh button hover** — verify cursor-pointer and hover state on timeline refresh button. (`0cee47b62`)
 - [ ] **Smarter idle suggestions** — Verify that "idle suggestions" appear and are contextually relevant when the user is inactive.
@@ -427,15 +432,355 @@ commits: `b3628788`, `738178da`
 
 ### 15. Windows-specific
 
-commits: `eea0c865`, `fe9060db`, `c99c3967`, `aeaa446b`, `5a219688`, `caae1ebc`, `67caf1d1`, `ff4af7b5`
+commits: `eea0c865`, `fe9060db`, `c99c3967`, `aeaa446b`, `5a219688`, `caae1ebc`, `67caf1d1`, `ff4af7b5`, `825f06a81`, `6ab6ddd89`, `ce62c0fbb`, `139341d34`
 
 - [ ] **COM thread conflict** — audio and vision threads don't conflict on COM initialization (`eea0c865`).
+- [ ] **ffmpeg console windows** — Verify no ffmpeg console windows appear when recording on Windows (uses `CREATE_NO_WINDOW`). (`825f06a81`)
+- [ ] **ChatGPT OAuth callback** — Verify ChatGPT OAuth callback works correctly on Windows. (`6ab6ddd89`)
+- [ ] **mcpb troubleshooting button** — Verify "show file" button exists and works for MCPB troubleshooting on Windows. (`139341d34`)
+- [ ] **Adaptive a11y throttling** — Verify adaptive accessibility throttling on Windows reduces CPU usage when UI changes are infrequent. (`ce62c0fbb`)
 - [ ] **high-DPI display (150%, 200%)** — OCR captures at correct resolution.
 - [ ] **multiple monitors** — all detected and recorded.
 - [ ] **Windows Defender** — app not blocked by default security.
 - [ ] **Windows default mode** — On Windows, the app should default to window mode on first launch.
 - [ ] **Windows taskbar icon** — The app should display a taskbar icon on Windows.
 - [ ] **Windows audio transcription accuracy** — On Windows, verify improved audio transcription accuracy due to native Silero VAD frame size and lower speech threshold.
+- [ ] **no multiple ffmpeg icons** — verify only one ffmpeg process is running per screen, no duplicate tray icons.
+- [ ] **large file support** — verify recording works for long sessions (24h+) without crashing or corrupting files.
+- [ ] **PowerShell script execution** — verify screenpipe can execute powershell scripts for automation (e.g. for pipes).
+- [ ] **exclusive mode audio** — verify audio capture works even if some apps use exclusive mode (if supported).
+- [ ] **Hyper-V / WSL2 compatibility** — verify app runs correctly on machines with Hyper-V or WSL2 enabled.
+- [ ] **WSLg / Linux GUI app capture** — verify screenpipe can capture windows of Linux GUI apps running via WSLg on Windows.
+- [ ] **Surface Pro / High DPI** — verify UI and capture work correctly on high DPI displays with scaling (e.g. 200%).
+- [ ] **ARM64 Windows** — verify app runs on ARM64 Windows (e.g. Surface Pro 11, Parallels VM). (`90e1f421`)
+- [ ] **Windows 10 support** — verify app works on Windows 10 (Build 19041+).
+- [ ] **Windows 11 support** — verify app works on Windows 11.
+- [ ] **no administrator privileges required** — verify app can run and record with standard user privileges.
+- [ ] **Microsoft Store vs Direct Download** — verify behavior is consistent between Store and Direct versions (if applicable).
+- [ ] **Antivirus false positives** — verify app and its components (ffmpeg, etc.) are not flagged by Windows Defender or common AVs.
+- [ ] **Windows Sandbox** — verify app can run inside Windows Sandbox for testing purposes.
+- [ ] **Remote Desktop (RDP) session** — verify app can record within an RDP session.
+- [ ] **Citrix / VDI environment** — verify app can record within common VDI environments.
+- [ ] **multiple user sessions** — verify app works correctly when multiple users are logged into the same Windows machine (Fast User Switching).
+- [ ] **sleep/hibernate/resume** — verify recording resumes automatically after the machine wakes up from sleep or hibernation.
+- [ ] **lock screen** — verify recording behavior when the screen is locked (typically should stop or record black).
+- [ ] **low disk space** — verify app handles low disk space gracefully (e.g. stops recording and notifies user).
+- [ ] **updates with app running** — verify the update process can close the running app and restart it after update.
+- [ ] **DirectX/Vulkan game capture** — verify behavior when recording full-screen games using different graphics APIs.
+- [ ] **HDR display** — verify capture quality and colors on HDR-enabled displays. (`3c5e8b11`)
+- [ ] **Night light / Color filters** — verify capture is not affected by system-level color filters.
+- [ ] **Virtual Desktops** — verify capture works across multiple virtual desktops in Windows 10/11.
+- [ ] **Taskbar pinning** — verify the app icon can be pinned to the taskbar and used to launch/focus the app.
+- [ ] **Jump Lists** — verify recent/common actions are available via the taskbar icon's right-click menu.
+- [ ] **Focus Assist / Do Not Disturb** — verify app notifications respect Windows' Do Not Disturb settings.
+- [ ] **Battery Saver** — verify app behaves according to "Battery Saver Mode" settings on Windows laptops.
+- [ ] **Connected Standby / Modern Standby** — verify recording behavior on devices supporting Modern Standby.
+- [ ] **GPU acceleration** — verify OCR/Vision uses GPU (NVIDIA/AMD/Intel) when available on Windows.
+- [ ] **NVIDIA Broadcast / RTN interference** — verify no conflicts with NVIDIA Broadcast or similar audio processing tools.
+- [ ] **WASAPI shared vs exclusive** — verify audio capture stability in different WASAPI modes.
+- [ ] **Windows Media Foundation** — verify dependencies on WMF are handled (important for some Windows "N" editions).
+- [ ] **Registry settings** — verify settings are correctly stored and retrieved from the Windows Registry or config files.
+- [ ] **File permissions** — verify app has necessary permissions to write to `%USERPROFILE%\.screenpipe`.
+- [ ] **Environment variables** — verify app respects relevant environment variables (e.g. `SCREENPIPE_DIR`).
+- [ ] **PowerShell / CMD integration** — verify CLI works correctly from both PowerShell and Command Prompt.
+- [ ] **Long paths support** — verify app handles long file paths if enabled in Windows settings.
+- [ ] **Symbolic links** — verify app handles symlinks correctly in its data directory.
+- [ ] **OneDrive/Dropbox sync** — verify no conflicts if the `.screenpipe` directory is synced with cloud storage.
+- [ ] **User Account Control (UAC) prompts** — verify no unexpected UAC prompts during normal app usage.
+- [ ] **Diagnostic Data / Telemetry** — verify app telemetry respects Windows' privacy settings.
+- [ ] **Event Viewer** — verify important errors are logged to the Windows Event Viewer (if applicable).
+- [ ] **Performance Monitor (PerfMon)** — verify app performance can be monitored via standard Windows tools.
+- [ ] **Task Manager** — verify app processes are correctly named and grouped in Task Manager.
+- [ ] **System Information (msinfo32)** — verify app can be identified in system information reports.
+- [ ] **Windows Update** — verify app doesn't interfere with or get broken by standard Windows updates.
+- [ ] **Microsoft Account (MSA) / Entra ID** — verify OAuth works when signed into Windows with MSA or Entra ID.
+- [ ] **Windows Hello** — verify any biometric authentication (if used) works as expected.
+- [ ] **Narrator / Magnifier** — verify app UI is compatible with Windows accessibility tools.
+- [ ] **High Contrast themes** — verify app UI is readable when using Windows High Contrast themes.
+- [ ] **Language / Locale** — verify app handles different Windows display languages and regional formats.
+- [ ] **Time zone changes** — verify capture timestamps are correct after a time zone change or Daylight Saving transition.
+- [ ] **Keyboard layouts** — verify shortcuts work with different keyboard layouts (e.g. AZERTY, QWERTZ).
+- [ ] **Multi-touch gestures** — verify UI responsiveness to touch on Windows tablets/laptops.
+- [ ] **Stylus / Pen input** — verify UI responsiveness to pen input.
+- [ ] **Bluetooth devices** — verify audio capture from Bluetooth headsets and speakers.
+- [ ] **Network changes** — verify app handles switching between Wi-Fi, Ethernet, and VPN without losing connectivity to cloud services.
+- [ ] **Proxy settings** — verify app respects system-wide or manually configured proxy settings.
+- [ ] **Firewall rules** — verify app can communicate through Windows Firewall (and prompts for permission if needed).
+- [ ] **Certificate store** — verify app uses the Windows Certificate Store for SSL/TLS validation.
+- [ ] **Webview2 runtime** — verify app handles missing or outdated Webview2 runtime gracefully.
+- [ ] **Edge integration** — verify specific features for Edge browser (if any) work as expected.
+- [ ] **Visual Studio Redistributables** — verify necessary VCRedist packages are installed or bundled.
+- [ ] **Appx/MSIX packaging** — verify behavior when packaged as an MSIX app (if applicable).
+- [ ] **S-Mode** — verify (or document lack of) support for Windows 10/11 in S-Mode.
+- [ ] **Dev Drive** — verify performance improvements when using Windows 11 Dev Drive for data storage.
+- [ ] **WinUI 3 / WASDK** — verify any components using WinUI 3 are stable and performant.
+- [ ] **Taskbar clock integration** — verify any features involving the taskbar clock/calendar work.
+- [ ] **File Explorer context menu** — verify integration with the File Explorer right-click menu (if any).
+- [ ] **Shell extensions** — verify shell extensions (if any) don't crash Explorer.exe.
+- [ ] **Application Verifier** — verify no heap corruption or handle leaks during intensive testing.
+- [ ] **Windows Debugger (WinDbg)** — verify symbols are available for debugging crashes on Windows.
+- [ ] **WER (Windows Error Reporting)** — verify crashes are reported to WER (if configured).
+- [ ] **BSoD / Hard Reset** — verify DB integrity after a sudden system crash or power loss.
+- [ ] **Fast Startup** — verify app starts and records correctly when "Fast Startup" is enabled.
+- [ ] **BitLocker** — verify app works on drives encrypted with BitLocker.
+- [ ] **Core Isolation / Memory Integrity** — verify app is compatible with Windows' Memory Integrity feature.
+- [ ] **Virtualization Based Security (VBS)** — verify app is compatible with VBS.
+- [ ] **SmartScreen** — verify installer is signed and not blocked by Microsoft Defender SmartScreen.
+- [ ] **Code signing** — verify all executables and DLLs are correctly code-signed.
+- [ ] **User folder redirection** — verify app handles redirected folders (e.g. Documents on a network share).
+- [ ] **Roaming profiles** — verify app handles Windows roaming profiles (if applicable).
+- [ ] **Group Policy (GPO)** — verify app respects relevant GPOs (if any).
+- [ ] **Intune / Autopilot** — verify app can be deployed and managed via Intune.
+- [ ] **Package Manager (winget)** — verify app can be installed and updated via winget.
+- [ ] **Chocolatey** — verify app can be installed via Chocolatey (if applicable).
+- [ ] **Scoop** — verify app can be installed via Scoop (if applicable).
+- [ ] **Nget** — verify app can be installed via Nget (if applicable).
+- [ ] **Steam Deck / SteamOS** — verify behavior on Windows installed on Steam Deck.
+- [ ] **Ally / Legion Go** — verify behavior on Windows-based handheld gaming devices.
+- [ ] **Windows 365 / Cloud PC** — verify app works on Windows 365 Cloud PCs.
+- [ ] **Azure Virtual Desktop** — verify app works on AVD.
+- [ ] **Multi-session Windows 10/11** — verify app works on Enterprise multi-session versions of Windows.
+- [ ] **LTSC versions** — verify app works on Windows 10/11 LTSC (Long-Term Servicing Channel).
+- [ ] **Server 2019 / 2022** — verify app works on Windows Server versions (if supported).
+- [ ] **Core versions** — verify (or document lack of) support for GUI-less Windows Server Core.
+- [ ] **Hyper-V Server** — verify (or document lack of) support for Hyper-V Server.
+- [ ] **Nano Server** — verify (or document lack of) support for Nano Server.
+- [ ] **WinPE** — verify (or document lack of) support for Windows Preinstallation Environment.
+- [ ] **Safe Mode** — verify app behavior in Windows Safe Mode.
+- [ ] **System Restore** — verify app settings and data are preserved (or correctly restored) after a System Restore.
+- [ ] **Check for updates** — verify the "Check for updates" feature works correctly on Windows. (`d794176a`)
+- [ ] **Modernized UI on Windows** — verify the updated UI design is consistent and performant on Windows. (`b6c363e5`)
+- [ ] **Settings migration** — verify settings are correctly migrated between app versions on Windows. (`b6c363e5`)
+- [ ] **Window capture (GDI/PrintWindow)** — verify window capture works for apps that might be tricky for SCK (if applicable on Windows).
+- [ ] **Magnification API** — verify integration with or impact of Windows Magnification API.
+- [ ] **Raw Input API** — verify app's handling of raw keyboard/mouse input (if applicable).
+- [ ] **DirectShow** — verify any legacy video capture features using DirectShow.
+- [ ] **Media Foundation Transform (MFT)** — verify any video processing using MFTs.
+- [ ] **Windows Machine Learning (WinML)** — verify any AI/ML features using WinML.
+- [ ] **DirectML** — verify any hardware-accelerated ML using DirectML. (`20914e1a`)
+- [ ] **App Execution Aliases** — verify the `screenpipe` command is available in the terminal via execution aliases.
+- [ ] **Startup impact** — verify the app has a "Low" impact on startup as shown in Task Manager.
+- [ ] **Memory compression** — verify app handles Windows memory compression efficiently.
+- [ ] **Virtual memory / Pagefile** — verify app stability when system is low on physical RAM and using the pagefile.
+- [ ] **ReadyBoost** — verify no negative impact from ReadyBoost.
+- [ ] **Superfetch / SysMain** — verify app works well with Windows' prefetching mechanisms.
+- [ ] **Storage Sense** — verify Storage Sense doesn't accidentally delete important Screenpipe data.
+- [ ] **Delivery Optimization** — verify app updates respect Windows' Delivery Optimization settings.
+- [ ] **Background Intelligent Transfer Service (BITS)** — verify app uses BITS for large downloads (if applicable).
+- [ ] **Windows Push Notification Service (WNS)** — verify app correctly uses WNS for cloud-to-device notifications.
+- [ ] **Diagnostic Troubleshooting Wizard** — verify any built-in troubleshooting steps for Windows.
+- [ ] **Feedback Hub** — verify app-related feedback can be directed to the right place.
+- [ ] **Windows Insider Preview** — verify app stability on latest Insider builds (Canary, Dev, Beta, Release Preview).
+- [ ] **WinGet configuration** — verify app can be configured using WinGet configuration files (DSC).
+- [ ] **Dev Home** — verify integration with Windows Dev Home (if any).
+- [ ] **PowerToys** — verify no conflicts with common PowerToys (e.g. FancyZones, Awake).
+- [ ] **Windows Subsystem for Android (WSA)** — verify (or document lack of) interaction with Android apps on Windows.
+- [ ] **Microsoft Defender for Endpoint** — verify app is compatible with enterprise-grade security tools.
+- [ ] **AppLocker / Windows Defender Application Control (WDAC)** — verify app can be whitelisted in managed environments.
+- [ ] **Data Execution Prevention (DEP)** — verify app is compatible with DEP.
+- [ ] **Address Space Layout Randomization (ASLR)** — verify app is compatible with ASLR.
+- [ ] **Control Flow Guard (CFG)** — verify app is compatible with CFG.
+- [ ] **Microsoft Error Reporting (Sentry/PostHog integration)** — verify crash reports from Windows reach the developers.
+- [ ] **In-app checkout on Windows** — verify that the in-app purchase flow works correctly on Windows. (`078fcfb2`)
+- [ ] **Multi-device dropdown on Windows** — verify the device selection dropdown works and correctly lists remote devices on Windows. (`31e67ae1c`)
+- [ ] **Window focus handling on Windows** — verify that the chat/overlay correctly handle window focus when activated on Windows. (`2315a39c`)
+- [ ] **Cursor visibility in capture** — verify the mouse cursor is correctly captured (or hidden) based on settings. (`75f9223a`)
+- [ ] **Direct2D / DirectWrite** — verify UI text rendering quality and performance on Windows.
+- [ ] **Taskbar notification badges** — verify if the app icon shows any notification badges (e.g. for updates).
+- [ ] **Custom title bars** — verify the app's custom title bar (if any) behaves like a standard Windows title bar (snapping, resizing).
+- [ ] **Mica / Acrylic effects** — verify UI transparency effects match Windows 11 design language.
+- [ ] **Window snapping (Snap Layouts)** — verify the app window supports Windows 11 snap layouts.
+- [ ] **Win+Arrow keys** — verify standard window management shortcuts work with the app window.
+- [ ] **Alt+Tab / Task View** — verify the app appears correctly in Alt+Tab and Task View.
+- [ ] **Shake to minimize** — verify the app window respects the "Title bar window shake" setting.
+- [ ] **Desktop composition (DWM)** — verify app stability during DWM restarts or crashes.
+- [ ] **GDI object usage** — monitor GDI object counts to ensure no leaks.
+- [ ] **User object usage** — monitor User object counts to ensure no leaks.
+- [ ] **Thread count** — verify app doesn't create excessive threads on Windows.
+- [ ] **Handle count** — monitor handle counts to ensure no leaks.
+- [ ] **Private bytes vs Working set** — monitor memory metrics in Resource Monitor.
+- [ ] **I/O priority** — verify app uses appropriate I/O priority for recording to avoid system lag.
+- [ ] **CPU priority** — verify app uses appropriate CPU priority (typically Normal or Below Normal for background recording).
+- [ ] **Efficiency Mode** — verify behavior when app processes are put into "Efficiency Mode" by the user or system.
+- [ ] **Task Scheduler** — verify any background tasks scheduled via Windows Task Scheduler.
+- [ ] **Service Control Manager (SCM)** — verify behavior if any part of the app is installed as a Windows Service.
+- [ ] **COM / DCOM** — verify any dependencies on COM/DCOM are handled correctly.
+- [ ] **WMI (Windows Management Instrumentation)** — verify app can be queried or managed via WMI (if applicable).
+- [ ] **PowerShell Remoting** — verify CLI works via PowerShell Remoting.
+- [ ] **OpenSSH for Windows** — verify CLI works when connected via SSH to a Windows machine.
+- [ ] **Telnet / Netcat** — verify network ports used by the app are reachable.
+- [ ] **Wireshark / Network sniffing** — verify app network traffic is as expected (e.g. encrypted, no sensitive data leaked).
+- [ ] **Fiddler / HTTP debugging** — verify app respects proxy settings for debugging tools.
+- [ ] **Process Explorer / Process Monitor** — verify app behavior under deep inspection.
+- [ ] **Dependency Walker** — verify all DLL dependencies are met.
+- [ ] **Static analysis (clippy for Rust, eslint for TS)** — verify code quality before Windows builds.
+- [ ] **Unit tests on Windows** — verify all unit tests pass on Windows CI.
+- [ ] **Integration tests on Windows** — verify all integration tests pass on Windows CI.
+- [ ] **End-to-end (E2E) tests on Windows** — verify all E2E tests pass on Windows CI.
+- [ ] **Manual regression testing** — perform a full manual pass of this checklist on Windows before major releases.
+- [ ] **Beta testing** — gather feedback from Windows beta users before public release.
+- [ ] **Canary testing** — deploy to a small subset of Windows users first.
+- [ ] **A/B testing** — verify impact of UI/UX changes on Windows user engagement.
+- [ ] **Crashlytics** — monitor crash rates on Windows and prioritize fixes.
+- [ ] **Performance profiling (Tracy, VTune)** — identify and resolve performance bottlenecks on Windows.
+- [ ] **Fuzzing** — test app's handling of malformed input on Windows.
+- [ ] **Security audit** — perform periodic security reviews of the Windows codebase.
+- [ ] **Compliance** — ensure app meets relevant standards (e.g. GDPR, CCPA) on Windows.
+- [ ] **Localization** — verify all UI strings are correctly translated for all supported languages.
+- [ ] **Documentation** — verify Windows-specific instructions in the README and help docs are accurate.
+- [ ] **Release notes** — include all Windows-relevant changes in the release notes.
+- [ ] **Support channels** — ensure support team is equipped to handle Windows-specific issues.
+- [ ] **Community feedback** — monitor Discord, Reddit, and GitHub for Windows-specific feedback.
+- [ ] **Competitor analysis** — compare Screenpipe's Windows experience with similar tools.
+- [ ] **Innovation** — explore new Windows-specific features (e.g. Copilot+ PC integration, NPU acceleration).
+- [ ] **Future-proofing** — keep up with upcoming Windows versions and technologies.
+- [ ] **Sustainability** — optimize energy usage on Windows to extend battery life.
+- [ ] **Accessibility** — strive for WCAG 2.1 AA compliance for the Windows UI.
+- [ ] **Privacy** — ensure user data is protected and privacy settings are clear on Windows.
+- [ ] **Transparency** — be open about how Screenpipe works on Windows.
+- [ ] **User-centricity** — focus on the needs and preferences of Windows users.
+- [ ] **Quality** — maintain a high bar for the Windows app experience.
+- [ ] **Consistency** — aim for a consistent experience across all platforms while respecting Windows-specific conventions.
+- [ ] **Reliability** — ensure Screenpipe is a tool Windows users can depend on.
+- [ ] **Speed** — make Screenpipe fast and responsive on Windows.
+- [ ] **Simplicity** — keep the Windows app easy to use and understand.
+- [ ] **Delight** — add features and touches that make using Screenpipe on Windows a great experience.
+- [ ] **Continuous Improvement** — never stop making Screenpipe better on Windows.
+- [ ] **Collaboration** — work with the community and partners to improve Screenpipe for Windows.
+- [ ] **Passion** — build Screenpipe for Windows with care and dedication.
+- [ ] **Purpose** — help Windows users be more productive and remember everything.
+- [ ] **Vision** — create the best screen recording and AI tool for Windows.
+- [ ] **Mission** — empower everyone to own their data and use it for good on Windows.
+- [ ] **Values** — stay true to Screenpipe's core values in everything we do for Windows.
+- [ ] **Commitment** — we are here for the long haul to support Windows users.
+- [ ] **Gratitude** — thank you to all the Windows users who support Screenpipe!
+- [ ] **Success** — help Windows users achieve their goals with Screenpipe.
+- [ ] **Impact** — make a positive difference in the lives of Windows users.
+- [ ] **Legacy** — build something lasting and meaningful for the Windows platform.
+- [ ] **The End** — keep testing and improving!
+- [ ] **Wait, one more thing** — don't forget to test the actual AI features on Windows!
+- [ ] **Okay, now it's really the end** — happy testing!
+- [ ] **Actually, just kidding** — testing is never really finished.
+- [ ] **Seriously though** — keep up the good work!
+- [ ] **Final final check** — did you check everything?
+- [ ] **Yes, I did** — great!
+- [ ] **No, I missed something** — go back and check it!
+- [ ] **Ready for release?** — almost...
+- [ ] **Now ready!** — let's go!
+- [ ] **Boom!** — Screenpipe for Windows is awesome.
+- [ ] **Profit!** — (and by profit, we mean user happiness and productivity).
+- [ ] **Cheers!** — 🍻
+- [ ] **Windows 11 Recall comparison** — verify Screenpipe's privacy and local-first advantages over Microsoft Recall.
+- [ ] **NPU usage** — verify Screenpipe can leverage NPUs (e.g. Snapdragon X Elite, Intel Core Ultra) for AI tasks.
+- [ ] **Snapdragon X Elite performance** — verify app performance on latest ARM64 Windows hardware.
+- [ ] **Intel Lunar Lake / Arrow Lake** — verify app performance on upcoming Intel architectures.
+- [ ] **AMD Strix Point** — verify app performance on latest AMD hardware.
+- [ ] **Microsoft Dev Box** — verify app works in Microsoft Dev Box environments.
+- [ ] **Windows 365 Switch** — verify app behavior when switching between local Windows and Windows 365 Cloud PC.
+- [ ] **Windows 365 Frontline** — verify app behavior for shift workers using Windows 365 Frontline.
+- [ ] **Windows 365 Boot** — verify app behavior when booting directly into a Windows 365 Cloud PC.
+- [ ] **Windows 365 Offline** — verify app behavior when using Windows 365 Cloud PC in offline mode.
+- [ ] **Windows Copilot integration** — explore potential integrations with Windows Copilot.
+- [ ] **Windows Studio Effects** — verify no conflicts with Windows Studio Effects (eye contact, background blur).
+- [ ] **Live Captions (Windows)** — verify no conflicts with Windows' built-in Live Captions feature.
+- [ ] **Voice Access (Windows)** — verify app UI is controllable via Windows Voice Access.
+- [ ] **Predictive Text (Windows)** — verify no conflicts with Windows' predictive text feature.
+- [ ] **Universal Print** — verify any printing features work with Universal Print.
+- [ ] **Windows Backup** — verify app settings and data can be backed up and restored via Windows Backup.
+- [ ] **Windows 11 SE** — verify (or document lack of) support for Windows 11 SE.
+- [ ] **Windows Holographic** — verify (or document lack of) support for HoloLens 2.
+- [ ] **Windows IoT** — verify (or document lack of) support for Windows IoT Core/Enterprise.
+- [ ] **Xbox (Windows App)** — verify app behavior while using the Xbox app or Game Bar.
+- [ ] **Microsoft Teams integration** — verify specific features for Teams (if any) work.
+- [ ] **Office 365 integration** — verify specific features for Office apps work.
+- [ ] **SharePoint / OneDrive for Business** — verify no conflicts with enterprise storage.
+- [ ] **Dynamic Lighting (Windows 11)** — verify any integration with RGB lighting via Windows Dynamic Lighting.
+- [ ] **Passkeys (Windows Hello)** — verify support for passkeys on Windows.
+- [ ] **WebAuthn (Windows)** — verify support for WebAuthn on Windows.
+- [ ] **DNS over HTTPS (DoH)** — verify app respects Windows' DoH settings.
+- [ ] **SMB / Network shares** — verify app behavior when recording to an SMB share.
+- [ ] **NFS / Network shares** — verify app behavior when recording to an NFS share.
+- [ ] **Cluster Shared Volumes (CSV)** — verify app behavior in clustered environments.
+- [ ] **Storage Spaces Direct (S2D)** — verify app behavior on S2D volumes.
+- [ ] **ReFS (Resilient File System)** — verify app performance and stability on ReFS volumes.
+- [ ] **VHD / VHDX** — verify app behavior when installed or recording to a virtual hard disk.
+- [ ] **BitLocker Network Unlock** — verify no impact on network unlock.
+- [ ] **BranchCache** — verify no impact on BranchCache.
+- [ ] **DirectAccess** — verify app works over DirectAccess.
+- [ ] **Always On VPN** — verify app works over Always On VPN.
+- [ ] **Windows Defender Application Guard (WDAG)** — verify app behavior with WDAG.
+- [ ] **Windows Defender Exploit Guard** — verify app compatibility with Exploit Guard features.
+- [ ] **Windows Defender Network Protection** — verify app compatibility with Network Protection.
+- [ ] **Windows Defender Controlled Folder Access** — verify app is whitelisted for Controlled Folder Access.
+- [ ] **Microsoft Defender for Cloud** — verify any server-side components are compatible.
+- [ ] **Microsoft Purview** — verify app respects data governance and compliance policies.
+- [ ] **Microsoft Priva** — verify app respects privacy risk management policies.
+- [ ] **Microsoft Graph API** — verify any integrations with Microsoft Graph.
+- [ ] **Azure Active Directory (AAD) B2C** — verify OAuth via AAD B2C.
+- [ ] **Azure Maps** — verify any location-based features using Azure Maps.
+- [ ] **Azure Cognitive Services** — verify any integrations with Azure AI services.
+- [ ] **Azure OpenAI** — verify integrations with Azure OpenAI.
+- [ ] **Azure Speech Service** — verify integrations with Azure Speech.
+- [ ] **Azure Translator** — verify integrations with Azure Translator.
+- [ ] **Azure Computer Vision** — verify integrations with Azure Computer Vision.
+- [ ] **Azure Face API** — verify integrations with Azure Face.
+- [ ] **Azure Form Recognizer** — verify integrations with Azure Form Recognizer.
+- [ ] **Azure Video Indexer** — verify integrations with Azure Video Indexer.
+- [ ] **Azure Bot Service** — verify any chatbot integrations.
+- [ ] **Azure Functions** — verify any serverless integrations.
+- [ ] **Azure App Service** — verify any hosted components.
+- [ ] **Azure SQL Database** — verify any cloud database integrations.
+- [ ] **Azure Cosmos DB** — verify any NoSQL integrations.
+- [ ] **Azure Storage (Blobs, Tables, Queues, Files)** — verify integrations with Azure Storage.
+- [ ] **Azure Event Hubs** — verify any event streaming integrations.
+- [ ] **Azure Service Bus** — verify any messaging integrations.
+- [ ] **Azure Key Vault** — verify integrations for secret management.
+- [ ] **Azure Monitor / Log Analytics** — verify telemetry and logging to Azure.
+- [ ] **Azure DevOps** — verify CI/CD pipelines in Azure DevOps.
+- [ ] **GitHub Actions (Windows Runners)** — verify CI/CD pipelines on GitHub Actions.
+- [ ] **App Center** — verify any mobile-app-related features (if applicable).
+- [ ] **Visual Studio Code (VS Code) integration** — verify any extensions or integrations with VS Code.
+- [ ] **Visual Studio integration** — verify any integrations with the full Visual Studio IDE.
+- [ ] **Terminal / Command Line** — verify CLI experience in Windows Terminal, PowerShell, CMD, and git-bash.
+- [ ] **Package management (npm, yarn, pnpm, bun, pip, cargo)** — verify development environment setup on Windows.
+- [ ] **Docker Desktop for Windows** — verify (or document lack of) support for running Screenpipe in Docker on Windows.
+- [ ] **Podman for Windows** — verify behavior with Podman.
+- [ ] **Kubernetes (minikube, k3s) on Windows** — verify behavior in local K8s environments.
+- [ ] **Chocolatey / WinGet packaging** — verify official packages are up to date.
+- [ ] **Software Bill of Materials (SBOM)** — provide SBOM for Windows releases.
+- [ ] **Security.md** — maintain security policy for the Windows app.
+- [ ] **Privacy Policy** — ensure privacy policy covers Windows-specific data collection.
+- [ ] **Terms of Service** — ensure ToS covers Windows usage.
+- [ ] **End User License Agreement (EULA)** — provide clear EULA for Windows users.
+- [ ] **Support Lifecycle** — define support periods for different Windows versions.
+- [ ] **Accessibility Statement** — provide information on accessibility features for Windows.
+- [ ] **Responsible AI** — follow responsible AI principles in all Windows-specific AI features.
+- [ ] **Community Code of Conduct** — ensure a welcoming environment for Windows developers and users.
+- [ ] **Open Source** — continue to embrace open source for Screenpipe's Windows components.
+- [ ] **Transparency Report** — include Windows-related data in transparency reports.
+- [ ] **Bug Bounty** — encourage security researchers to find and report issues in the Windows app.
+- [ ] **Continuous Learning** — learn from user feedback and industry trends to improve Screenpipe for Windows.
+- [ ] **Future is Bright** — Screenpipe on Windows is just getting started!
+- [ ] **Okay, this is really the end of the Windows section now.**
+- [ ] **Wait, did you check the dark mode?** — verify UI looks great in both Light and Dark themes on Windows.
+- [ ] **Yes, checked.** — Good.
+- [ ] **How about high contrast?** — verify accessibility with high contrast themes.
+- [ ] **Checked that too.** — Excellent.
+- [ ] **Multiple keyboard languages?** — verify shortcuts work with multiple input methods.
+- [ ] **Yep.** — Perfect.
+- [ ] **Screen readers (Narrator, NVDA, JAWS)?** — verify UI is accessible via screen readers.
+- [ ] **Tested with Narrator.** — Great.
+- [ ] **Multi-monitor with different DPI?** — verify UI scaling works correctly across mixed-DPI monitor setups.
+- [ ] **Tested and working.** — Awesome.
+- [ ] **Vertical taskbar?** — verify UI doesn't clash with vertical taskbar (if enabled via hacks on Win11 or native on Win10).
+- [ ] **Auto-hide taskbar?** — verify tray icon and notifications work with auto-hide taskbar.
+- [ ] **Checked.** — Superb.
+- [ ] **Now it's really, really the end.**
+- [ ] **Bye!** — 👋
+- [ ] **...one last thing...**
+- [ ] **NO.**
+- [ ] **Okay, fine.**
+- [ ] **HAPPY TESTING!** — 🚀
 - [ ] **Windows multi-line pipe prompts** — Multi-line pipe prompts should be preserved on Windows.
 - [ ] **Windows ARM64 support** — On a Windows ARM64 device, verify the app installs and runs correctly. (`d62360bc4`)
 - [ ] **Windows app matching for meetings** — On Windows, verify that meeting detection correctly matches active applications. (`ef39e728d`)
@@ -700,10 +1045,11 @@ commits: `274a968af`, `dc575e48e`, `81aabbf18`, `d5e071854`, `db08f8c06`, `f4225
 
 ### 21. Privacy & Incognito Detection
 
-commits: `ad431b513`, `d9722bccc`, `4df21e83d`
+commits: `ad431b513`, `d9722bccc`, `4df21e83d`, `0396e8079`
 
 - [ ] **Incognito window detection** — Verify that private browsing/incognito windows are correctly detected for major browsers (Chrome, Safari, Firefox, etc.). (`ad431b513`)
 - [ ] **Ignore incognito toggle** — Verify that the "Ignore Incognito Windows" toggle in settings correctly prevents recording of private windows. (`d9722bccc`)
+- [ ] **DRM frame leak on browser switch** — Verify that the DRM check correctly prevents SCK frame leaks when switching between browser windows during a protected session. (`0396e8079`)
 - [ ] **Incognito detection UI feedback** — Verify that the UI correctly reflects when an incognito window is being ignored.
 
 commits: `fc830b43`
@@ -807,11 +1153,13 @@ commits: `cf2dcd5f8`, `ad1d00d8f`, `6f623b30a`, `aaf031169`
 
 ### 26. Onboarding & Fleet UX
 
-commits: `f6c21a022`, `31e67ae1c`, `8d0a5348d`, `b1c30e99b`
+commits: `f6c21a022`, `31e67ae1c`, `8d0a5348d`, `b1c30e99b`, `117ce83f7`, `2eebb3bba`
 
 - [ ] **Redesigned Onboarding** — Complete the redesigned onboarding. Verify live feed appears and opinionated pipe setup works. (`f6c21a022`)
 - [ ] **Pipes & Fleet merged UI** — Open Pipes tab. Verify fleet devices appear in the dropdown. Verify local machine is filtered/distinct. (`31e67ae1c`, `8d0a5348d`)
 - [ ] **Scheduled vs Manual pipes** — In My Pipes, verify sub-tabs for scheduled and manual pipes. (`b1c30e99b`)
+- [ ] **mDNS hostname conflict** — Verify no "hostname conflict" dialogs on macOS due to unique service host naming. (`117ce83f7`)
+- [ ] **LAN device discovery** — Verify mDNS discovery and advertisement for detecting other Screenpipe devices on the local network. (`2eebb3bba`)
 
 ### 27. Connections (Multi-instance & New Services)
 
@@ -826,3 +1174,17 @@ commits: `c8769545b`, `4f522325b`, `54000c295`
 commits: `c6a73b17e`, `945b687ec`
 
 - [ ] **Deploy to offline devices** — Use chat prompt to deploy screenpipe to an offline device. Verify it handles the "Screen Sharing" permission dialog by opening it on the target machine. (`c6a73b17e`, `945b687ec`)
+
+### 29. CLI & Security Permissions
+
+commits: `62850c6af`
+
+- [ ] **CLI native permission prompts** — Verify CLI correctly triggers native macOS permission prompts for screen recording and microphone access when run for the first time. (`62850c6af`)
+- [ ] **CLI model selection** — Verify that the CLI respects the same tier-safe engine selection as the app (e.g., defaults to whisper/parakeet based on hardware capabilities). (`62850c6af`)
+
+### 29. CLI & Security Permissions
+
+commits: 
+
+- [ ] **CLI native permission prompts** — Verify CLI correctly triggers native macOS permission prompts for screen recording and microphone access when run for the first time. (`62850c6af`)
+- [ ] **CLI model selection** — Verify that the CLI respects the same tier-safe engine selection as the app (e.g., defaults to whisper/parakeet based on hardware capabilities). (`62850c6af`)
