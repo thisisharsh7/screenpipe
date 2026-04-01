@@ -43,14 +43,23 @@ struct TLTimeSeriesFrame: Codable, Identifiable {
     var id: String { timestamp }
 
     var date: Date? {
-        TLTimeSeriesFrame.isoFormatter.date(from: timestamp)
+        TLTimeSeriesFrame.parseISO(timestamp)
     }
 
-    private static let isoFormatter: ISO8601DateFormatter = {
+    private static let isoFormatterFrac: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return f
     }()
+    private static let isoFormatterBasic: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
+    static func parseISO(_ str: String) -> Date? {
+        isoFormatterFrac.date(from: str) ?? isoFormatterBasic.date(from: str)
+    }
 }
 
 // MARK: - Batch push payload
@@ -88,21 +97,30 @@ struct TLMeeting: Codable, Identifiable {
     let app: String?      // "Zoom", "Google Meet", etc.
 
     var startDate: Date? {
-        TLMeeting.isoFormatter.date(from: startTime)
+        TLMeeting.parseISO(startTime)
     }
     var endDate: Date? {
-        TLMeeting.isoFormatter.date(from: endTime)
+        TLMeeting.parseISO(endTime)
     }
     var durationMinutes: Int {
         guard let s = startDate, let e = endDate else { return 0 }
         return Int(e.timeIntervalSince(s) / 60)
     }
 
-    private static let isoFormatter: ISO8601DateFormatter = {
+    private static let isoFormatterFrac: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return f
     }()
+    private static let isoFormatterBasic: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
+    static func parseISO(_ str: String) -> Date? {
+        isoFormatterFrac.date(from: str) ?? isoFormatterBasic.date(from: str)
+    }
 }
 
 struct TLMeetingBatch: Codable {
@@ -119,17 +137,26 @@ struct TLTag: Codable, Identifiable {
     let endTime: String    // ISO 8601
 
     var startDate: Date? {
-        TLTag.isoFormatter.date(from: startTime)
+        TLTag.parseISO(startTime)
     }
     var endDate: Date? {
-        TLTag.isoFormatter.date(from: endTime)
+        TLTag.parseISO(endTime)
     }
 
-    private static let isoFormatter: ISO8601DateFormatter = {
+    private static let isoFormatterFrac: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return f
     }()
+    private static let isoFormatterBasic: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
+    static func parseISO(_ str: String) -> Date? {
+        isoFormatterFrac.date(from: str) ?? isoFormatterBasic.date(from: str)
+    }
 
     var swiftColor: SwiftUI.Color {
         guard let hex = color else { return .blue }

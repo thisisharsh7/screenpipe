@@ -86,11 +86,10 @@ class TimelineDataStore: ObservableObject {
     }
 
     private var knownTimestamps: Set<String> = []
-    private let isoFormatter: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
+
+    private func parseISO(_ str: String) -> Date? {
+        TLTimeSeriesFrame.parseISO(str)
+    }
 
     // MARK: - Frame management
 
@@ -115,7 +114,7 @@ class TimelineDataStore: ObservableObject {
     }
 
     func setCurrentTime(_ iso: String) {
-        guard let date = isoFormatter.date(from: iso) else { return }
+        guard let date = parseISO(iso) else { return }
         currentTimestamp = date
 
         let target = iso
@@ -136,7 +135,7 @@ class TimelineDataStore: ObservableObject {
     func seekRelative(seconds: Double) {
         guard let current = currentTimestamp else { return }
         let newTime = current.addingTimeInterval(seconds)
-        let iso = isoFormatter.string(from: newTime)
+        let iso = ISO8601DateFormatter().string(from: newTime)
         setCurrentTime(iso)
     }
 
