@@ -186,6 +186,8 @@ async fn apply_shortcuts(app: &AppHandle, config: &ShortcutConfig) -> Result<(),
                         info!("showing native timeline");
                         native_timeline::show();
                         NATIVE_VISIBLE.store(true, Ordering::Relaxed);
+                        // Tell the frontend to connect WebSocket and start pushing frames
+                        let _ = app.emit("native-timeline-opened", ());
                     }
                     return;
                 }

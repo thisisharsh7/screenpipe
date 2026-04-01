@@ -56,6 +56,7 @@ import { SpeakersSection } from "@/components/settings/speakers-section";
 import { StandaloneChat } from "@/components/standalone-chat";
 import Timeline from "@/components/rewind/timeline";
 import { NativeTimelineWrapper } from "@/components/rewind/native-timeline-wrapper";
+import { NativeTimelineDataPump } from "@/components/rewind/native-timeline-data-pump";
 import { useQueryState } from "nuqs";
 import { emit, listen } from "@tauri-apps/api/event";
 import { useSettings } from "@/lib/hooks/use-settings";
@@ -434,6 +435,8 @@ function SettingsPageContent() {
 
   return (
     <div className={cn("bg-transparent", isFullHeight ? "h-screen overflow-hidden" : "min-h-screen")} data-testid="home-page">
+      {/* Native timeline data pump — always mounted to forward WebSocket data */}
+      <NativeTimelineDataPump />
       {/* Enterprise license key prompt */}
       {needsLicenseKey && <EnterpriseLicensePrompt onSubmit={submitLicenseKey} />}
       {/* Drag region — always absolute so it works with full-bleed translucent layout */}
