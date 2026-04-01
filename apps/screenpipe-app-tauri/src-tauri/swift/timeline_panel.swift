@@ -88,7 +88,7 @@ class TimelineDataStore: ObservableObject {
     private var knownTimestamps: Set<String> = []
 
     private func parseISO(_ str: String) -> Date? {
-        TLTimeSeriesFrame.parseISO(str)
+        TLDateParser.parse(str)
     }
 
     // MARK: - Frame management
