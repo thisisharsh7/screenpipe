@@ -6,29 +6,72 @@ import Foundation
 import AppKit
 import SwiftUI
 
-// MARK: - Data Store (shared between bridge and views)
+// MARK: - Data Store
 
 class TimelineDataStore: ObservableObject {
     static let shared = TimelineDataStore()
 
+    // Frame data
     @Published var frames: [TLTimeSeriesFrame] = []
     @Published var appGroups: [TLAppGroup] = []
     @Published var isLoading: Bool = true
+
+    // Current position
     @Published var currentTimestamp: Date?
     @Published var currentFrameId: Int64?
+    @Published var currentFrameIndex: Int = 0
     @Published var currentAppName: String = ""
     @Published var currentWindowName: String = ""
     @Published var currentOcrText: String = ""
     @Published var currentBrowserUrl: String?
     @Published var currentAudio: [TLAudioData] = []
 
+    // Selection
+    @Published var selectionStart: Date?
+    @Published var selectionEnd: Date?
+    @Published var isSelecting: Bool = false
+
+    // Filters
+    @Published var filterApp: String?
+    @Published var filterDevice: String?
+    @Published var filterSpeaker: String?
+    @Published var showOcrOverlay: Bool = false
+
+    // Search
+    @Published var searchQuery: String = ""
+    @Published var searchResults: [Int] = [] // frame indices matching search
+
+    // Day navigation
+    @Published var currentDate: Date = Date()
+
+    // Unique values for filter dropdowns
+    var uniqueApps: [String] {
+        Array(Set(frames.compactMap { $0.devices.first?.metadata.app_name })).sorted()
+    }
+    var uniqueDevices: [String] {
+        Array(Set(frames.compactMap { $0.devices.first?.device_id })).sorted()
+    }
+    var uniqueSpeakers: [String] {
+        Array(Set(frames.flatMap { $0.devices.flatMap { $0.audio.compactMap { $0.speaker_name } } })).sorted()
+    }
+
     var dayStart: Date {
-        let cal = Calendar.current
-        return cal.startOfDay(for: currentTimestamp ?? Date())
+        Calendar.current.startOfDay(for: currentDate)
     }
     var dayEnd: Date {
-        let cal = Calendar.current
-        return cal.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
+        Calendar.current.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
+    }
+
+    var filteredAppGroups: [TLAppGroup] {
+        appGroups.filter { group in
+            if let app = filterApp, group.appName != app { return false }
+            if let dev = filterDevice, group.deviceId != dev { return false }
+            return true
+        }
+    }
+
+    var hasSelection: Bool {
+        selectionStart != nil && selectionEnd != nil
     }
 
     private var knownTimestamps: Set<String> = []
@@ -37,6 +80,8 @@ class TimelineDataStore: ObservableObject {
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return f
     }()
+
+    // MARK: - Frame management
 
     func pushFrames(_ newFrames: [TLTimeSeriesFrame]) {
         var added = 0
@@ -50,6 +95,11 @@ class TimelineDataStore: ObservableObject {
             frames.sort { $0.timestamp < $1.timestamp }
             rebuildAppGroups()
             isLoading = false
+
+            // Auto-select latest frame if nothing selected
+            if currentTimestamp == nil, let last = frames.last {
+                setCurrentTime(last.timestamp)
+            }
         }
     }
 
@@ -57,9 +107,9 @@ class TimelineDataStore: ObservableObject {
         guard let date = isoFormatter.date(from: iso) else { return }
         currentTimestamp = date
 
-        // Find closest frame
         let target = iso
         if let idx = frames.firstIndex(where: { $0.timestamp >= target }) {
+            currentFrameIndex = idx
             let frame = frames[idx]
             if let device = frame.devices.first {
                 currentFrameId = device.frame_id
@@ -75,8 +125,123 @@ class TimelineDataStore: ObservableObject {
     func seekRelative(seconds: Double) {
         guard let current = currentTimestamp else { return }
         let newTime = current.addingTimeInterval(seconds)
-        let iso = ISO8601DateFormatter().string(from: newTime)
+        let iso = isoFormatter.string(from: newTime)
         setCurrentTime(iso)
+    }
+
+    func seekToFrame(index: Int) {
+        guard index >= 0 && index < frames.count else { return }
+        setCurrentTime(frames[index].timestamp)
+    }
+
+    func nextFrame() {
+        seekToFrame(index: currentFrameIndex + 1)
+    }
+
+    func previousFrame() {
+        seekToFrame(index: currentFrameIndex - 1)
+    }
+
+    // MARK: - Selection
+
+    func startSelection(at date: Date) {
+        selectionStart = date
+        selectionEnd = date
+        isSelecting = true
+    }
+
+    func updateSelection(to date: Date) {
+        guard isSelecting else { return }
+        selectionEnd = date
+    }
+
+    func endSelection() {
+        isSelecting = false
+        // Normalize: ensure start < end
+        if let s = selectionStart, let e = selectionEnd, s > e {
+            selectionStart = e
+            selectionEnd = s
+        }
+    }
+
+    func clearSelection() {
+        selectionStart = nil
+        selectionEnd = nil
+        isSelecting = false
+    }
+
+    // MARK: - Search
+
+    func performSearch() {
+        guard !searchQuery.isEmpty else {
+            searchResults = []
+            return
+        }
+        let query = searchQuery.lowercased()
+        searchResults = frames.enumerated().compactMap { (idx, frame) in
+            guard let device = frame.devices.first else { return nil }
+            let meta = device.metadata
+            if meta.ocr_text.lowercased().contains(query) { return idx }
+            if meta.app_name.lowercased().contains(query) { return idx }
+            if meta.window_name.lowercased().contains(query) { return idx }
+            if device.audio.contains(where: { $0.transcription.lowercased().contains(query) }) { return idx }
+            return nil
+        }
+    }
+
+    func nextSearchResult() {
+        guard !searchResults.isEmpty else { return }
+        if let current = searchResults.first(where: { $0 > currentFrameIndex }) {
+            seekToFrame(index: current)
+        } else {
+            seekToFrame(index: searchResults[0]) // wrap around
+        }
+    }
+
+    func previousSearchResult() {
+        guard !searchResults.isEmpty else { return }
+        if let current = searchResults.last(where: { $0 < currentFrameIndex }) {
+            seekToFrame(index: current)
+        } else if let last = searchResults.last {
+            seekToFrame(index: last) // wrap around
+        }
+    }
+
+    // MARK: - Day navigation
+
+    func goToNextDay() {
+        currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate
+        clear()
+    }
+
+    func goToPreviousDay() {
+        currentDate = Calendar.current.date(byAdding: .day, value: -1, to: currentDate) ?? currentDate
+        clear()
+    }
+
+    func goToToday() {
+        currentDate = Date()
+        clear()
+    }
+
+    // MARK: - Filters
+
+    func toggleAppFilter(_ app: String) {
+        filterApp = filterApp == app ? nil : app
+    }
+
+    func toggleDeviceFilter(_ device: String) {
+        filterDevice = filterDevice == device ? nil : device
+    }
+
+    func toggleSpeakerFilter(_ speaker: String) {
+        filterSpeaker = filterSpeaker == speaker ? nil : speaker
+    }
+
+    func clearFilters() {
+        filterApp = nil
+        filterDevice = nil
+        filterSpeaker = nil
     }
 
     func setTimeRange(start: String, end: String) {
@@ -89,15 +254,20 @@ class TimelineDataStore: ObservableObject {
         knownTimestamps.removeAll()
         currentTimestamp = nil
         currentFrameId = nil
+        currentFrameIndex = 0
         isLoading = true
+        searchResults = []
+        clearSelection()
     }
+
+    // MARK: - App grouping
 
     private func rebuildAppGroups() {
         guard !frames.isEmpty else { appGroups = []; return }
 
         var groups: [TLAppGroup] = []
-        var currentApp = ""
-        var currentDevice = ""
+        var curApp = ""
+        var curDev = ""
         var groupStart: Date?
         var groupEnd: Date?
         var startIdx = 0
@@ -109,17 +279,16 @@ class TimelineDataStore: ObservableObject {
             let app = device.metadata.app_name
             let dev = device.device_id
 
-            if app == currentApp && dev == currentDevice {
+            if app == curApp && dev == curDev {
                 groupEnd = date
                 count += 1
                 if !device.audio.isEmpty { hasAudio = true }
             } else {
-                // Close previous group
-                if let s = groupStart, let e = groupEnd, !currentApp.isEmpty {
+                if let s = groupStart, let e = groupEnd, !curApp.isEmpty {
                     groups.append(TLAppGroup(
-                        id: "\(startIdx)-\(currentApp)",
-                        appName: currentApp,
-                        deviceId: currentDevice,
+                        id: "\(startIdx)-\(curApp)",
+                        appName: curApp,
+                        deviceId: curDev,
                         startTime: s,
                         endTime: e,
                         frameCount: count,
@@ -128,9 +297,8 @@ class TimelineDataStore: ObservableObject {
                         hasAudio: hasAudio
                     ))
                 }
-                // Start new group
-                currentApp = app
-                currentDevice = dev
+                curApp = app
+                curDev = dev
                 groupStart = date
                 groupEnd = date
                 startIdx = i
@@ -138,12 +306,11 @@ class TimelineDataStore: ObservableObject {
                 hasAudio = !device.audio.isEmpty
             }
         }
-        // Close last group
-        if let s = groupStart, let e = groupEnd, !currentApp.isEmpty {
+        if let s = groupStart, let e = groupEnd, !curApp.isEmpty {
             groups.append(TLAppGroup(
-                id: "\(startIdx)-\(currentApp)",
-                appName: currentApp,
-                deviceId: currentDevice,
+                id: "\(startIdx)-\(curApp)",
+                appName: curApp,
+                deviceId: curDev,
                 startTime: s,
                 endTime: e,
                 frameCount: count,
@@ -167,7 +334,14 @@ class TimelinePanelController {
     private var parentWindow: NSWindow?
     private var observations: [NSObjectProtocol] = []
 
+    var isVisible: Bool {
+        panel?.isVisible ?? false
+    }
+
     func create(parentWindowPtr: UInt64) {
+        // Don't recreate if already exists
+        if panel != nil { return }
+
         let store = TimelineDataStore.shared
 
         let contentView = TimelineOverlayView(store: store) { actionJson in
@@ -178,7 +352,7 @@ class TimelinePanelController {
         hosting.translatesAutoresizingMaskIntoConstraints = false
 
         let p = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 800, height: 500),
+            contentRect: NSRect(x: 0, y: 0, width: 900, height: 600),
             styleMask: [.titled, .closable, .resizable, .fullSizeContentView, NSWindow.StyleMask(rawValue: 128)],
             backing: .buffered,
             defer: false
@@ -191,20 +365,22 @@ class TimelinePanelController {
         p.backgroundColor = .windowBackgroundColor
         p.contentView = hosting
         p.isReleasedWhenClosed = false
+        p.minSize = NSSize(width: 600, height: 400)
 
-        // Position relative to parent
+        // Try to find parent window for positioning
         if parentWindowPtr != 0 {
-            let allWindows = NSApp.windows
-            parentWindow = allWindows.first { UInt64(UInt(bitPattern: Unmanaged.passUnretained($0).toOpaque())) == parentWindowPtr }
+            parentWindow = NSApp.windows.first {
+                UInt64(UInt(bitPattern: Unmanaged.passUnretained($0).toOpaque())) == parentWindowPtr
+            }
         }
 
         if let pw = parentWindow {
             let pf = pw.frame
             p.setFrame(NSRect(
-                x: pf.origin.x + (pf.width - 800) / 2,
-                y: pf.origin.y + (pf.height - 500) / 2,
-                width: 800,
-                height: 500
+                x: pf.origin.x + (pf.width - 900) / 2,
+                y: pf.origin.y + (pf.height - 600) / 2,
+                width: 900,
+                height: 600
             ), display: true)
         } else {
             p.center()
@@ -220,6 +396,14 @@ class TimelinePanelController {
 
     func hide() {
         panel?.orderOut(nil)
+    }
+
+    func toggle() {
+        if isVisible {
+            hide()
+        } else {
+            show()
+        }
     }
 
     func updatePosition(x: Double, y: Double, w: Double, h: Double) {
