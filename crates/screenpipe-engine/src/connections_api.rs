@@ -405,21 +405,20 @@ async fn gmail_list_messages(
     Query(params): Query<GmailMessagesQuery>,
 ) -> (StatusCode, Json<Value>) {
     let client = reqwest::Client::new();
-    let token = match oauth_store::get_valid_token(&client, "gmail").await {
-        Some(t) => t,
-        None => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(json!({ "error": "Gmail not connected — use 'Connect with Gmail' in Settings > Connections" })),
-            );
-        }
-    };
+    match gmail_list_messages_inner(&client, params).await {
+        Ok(data) => (StatusCode::OK, Json(json!({ "data": data }))),
+        Err(e) => gmail_err(e),
+    }
+}
 
+async fn gmail_list_messages_inner(
+    client: &reqwest::Client,
+    params: GmailMessagesQuery,
+) -> anyhow::Result<Value> {
+    let token = gmail_token(client).await?;
     let max_results = params.max_results.unwrap_or(20).min(500);
-    let mut url = reqwest::Url::parse(
-        "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-    )
-    .unwrap();
+    let mut url =
+        reqwest::Url::parse("https://gmail.googleapis.com/gmail/v1/users/me/messages").unwrap();
     {
         let mut pairs = url.query_pairs_mut();
         pairs.append_pair("maxResults", &max_results.to_string());
@@ -430,115 +429,85 @@ async fn gmail_list_messages(
             pairs.append_pair("pageToken", pt);
         }
     }
-
-    match client.get(url).bearer_auth(&token).send().await {
-        Ok(resp) => match resp.error_for_status() {
-            Ok(r) => match r.json::<Value>().await {
-                Ok(data) => (StatusCode::OK, Json(json!({ "data": data }))),
-                Err(e) => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({ "error": format!("failed to parse response: {}", e) })),
-                ),
-            },
-            Err(e) => (
-                StatusCode::BAD_GATEWAY,
-                Json(json!({ "error": format!("Gmail API error: {}", e) })),
-            ),
-        },
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": format!("request failed: {}", e) })),
-        ),
-    }
+    let data: Value = client
+        .get(url)
+        .bearer_auth(&token)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    Ok(data)
 }
 
 /// GET /connections/gmail/messages/:id — read a full Gmail message.
 async fn gmail_get_message(Path(id): Path<String>) -> (StatusCode, Json<Value>) {
     let client = reqwest::Client::new();
-    let token = match oauth_store::get_valid_token(&client, "gmail").await {
-        Some(t) => t,
-        None => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(json!({ "error": "Gmail not connected — use 'Connect with Gmail' in Settings > Connections" })),
-            );
-        }
-    };
+    match gmail_get_message_inner(&client, &id).await {
+        Ok(data) => (StatusCode::OK, Json(json!({ "data": data }))),
+        Err(e) => gmail_err(e),
+    }
+}
 
+async fn gmail_get_message_inner(client: &reqwest::Client, id: &str) -> anyhow::Result<Value> {
+    let token = gmail_token(client).await?;
     let url = format!(
         "https://gmail.googleapis.com/gmail/v1/users/me/messages/{}?format=full",
         id
     );
-
-    match client.get(&url).bearer_auth(&token).send().await {
-        Ok(resp) => match resp.error_for_status() {
-            Ok(r) => match r.json::<Value>().await {
-                Ok(msg) => {
-                    let parsed = parse_gmail_message(&msg);
-                    (StatusCode::OK, Json(json!({ "data": parsed })))
-                }
-                Err(e) => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({ "error": format!("failed to parse response: {}", e) })),
-                ),
-            },
-            Err(e) => (
-                StatusCode::BAD_GATEWAY,
-                Json(json!({ "error": format!("Gmail API error: {}", e) })),
-            ),
-        },
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": format!("request failed: {}", e) })),
-        ),
-    }
+    let msg: Value = client
+        .get(&url)
+        .bearer_auth(&token)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    Ok(parse_gmail_message(&msg))
 }
 
 /// POST /connections/gmail/send — send an email via Gmail.
-async fn gmail_send(
-    Json(body): Json<GmailSendRequest>,
-) -> (StatusCode, Json<Value>) {
+async fn gmail_send(Json(body): Json<GmailSendRequest>) -> (StatusCode, Json<Value>) {
     let client = reqwest::Client::new();
-    let token = match oauth_store::get_valid_token(&client, "gmail").await {
-        Some(t) => t,
-        None => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(json!({ "error": "Gmail not connected — use 'Connect with Gmail' in Settings > Connections" })),
-            );
-        }
-    };
+    match gmail_send_inner(&client, body).await {
+        Ok(data) => (StatusCode::OK, Json(json!({ "data": data }))),
+        Err(e) => gmail_err(e),
+    }
+}
 
+async fn gmail_send_inner(
+    client: &reqwest::Client,
+    body: GmailSendRequest,
+) -> anyhow::Result<Value> {
+    let token = gmail_token(client).await?;
     let from = body.from.unwrap_or_default();
     let raw = build_rfc2822_message(&from, &body.to, &body.subject, &body.body);
     let encoded = URL_SAFE_NO_PAD.encode(raw.as_bytes());
-
-    let payload = json!({ "raw": encoded });
-    match client
+    let data: Value = client
         .post("https://gmail.googleapis.com/gmail/v1/users/me/messages/send")
         .bearer_auth(&token)
-        .json(&payload)
+        .json(&json!({ "raw": encoded }))
         .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    Ok(data)
+}
+
+/// Retrieve a valid Gmail OAuth token or return an error.
+async fn gmail_token(client: &reqwest::Client) -> anyhow::Result<String> {
+    oauth_store::get_valid_token(client, "gmail")
         .await
-    {
-        Ok(resp) => match resp.error_for_status() {
-            Ok(r) => match r.json::<Value>().await {
-                Ok(data) => (StatusCode::OK, Json(json!({ "data": data }))),
-                Err(e) => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({ "error": format!("failed to parse response: {}", e) })),
-                ),
-            },
-            Err(e) => (
-                StatusCode::BAD_GATEWAY,
-                Json(json!({ "error": format!("Gmail API error: {}", e) })),
-            ),
-        },
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": format!("request failed: {}", e) })),
-        ),
-    }
+        .ok_or_else(|| anyhow::anyhow!("Gmail not connected — use 'Connect with Gmail' in Settings > Connections"))
+}
+
+/// Convert an anyhow error into the standard `(StatusCode, Json)` handler return.
+fn gmail_err(e: anyhow::Error) -> (StatusCode, Json<Value>) {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(json!({ "error": e.to_string() })),
+    )
 }
 
 /// Build a minimal RFC 2822 email message string.
@@ -598,39 +567,30 @@ fn parse_gmail_message(msg: &Value) -> Value {
 
 /// Recursively extract plain-text body from a Gmail payload part.
 fn extract_text_body(payload: &Value) -> String {
-    // Try direct body data
-    if let Some(data) = payload["body"]["data"].as_str() {
-        if let Ok(bytes) = URL_SAFE_NO_PAD.decode(data) {
-            if let Ok(text) = String::from_utf8(bytes) {
-                if !text.is_empty() {
-                    return text;
-                }
+    // Try direct body.data first (single-part messages)
+    if let Some(text) = decode_base64url(payload["body"]["data"].as_str()) {
+        return text;
+    }
+    // Walk parts (multipart/mixed, multipart/alternative, etc.)
+    let parts = payload["parts"].as_array().map(Vec::as_slice).unwrap_or(&[]);
+    for part in parts {
+        let mime = part["mimeType"].as_str().unwrap_or("");
+        if mime == "text/plain" {
+            if let Some(text) = decode_base64url(part["body"]["data"].as_str()) {
+                return text;
             }
         }
-    }
-    // Try parts
-    if let Some(parts) = payload["parts"].as_array() {
-        for part in parts {
-            let mime = part["mimeType"].as_str().unwrap_or("");
-            if mime == "text/plain" {
-                if let Some(data) = part["body"]["data"].as_str() {
-                    if let Ok(bytes) = URL_SAFE_NO_PAD.decode(data) {
-                        if let Ok(text) = String::from_utf8(bytes) {
-                            if !text.is_empty() {
-                                return text;
-                            }
-                        }
-                    }
-                }
-            }
-            // Recurse into nested parts (multipart/mixed, multipart/alternative, etc.)
-            let nested = extract_text_body(part);
-            if !nested.is_empty() {
-                return nested;
-            }
+        let nested = extract_text_body(part);
+        if !nested.is_empty() {
+            return nested;
         }
     }
     String::new()
+}
+
+fn decode_base64url(data: Option<&str>) -> Option<String> {
+    let text = String::from_utf8(URL_SAFE_NO_PAD.decode(data?).ok()?).ok()?;
+    if text.is_empty() { None } else { Some(text) }
 }
 
 // ---------------------------------------------------------------------------
