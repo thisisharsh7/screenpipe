@@ -200,6 +200,13 @@ jobs:
           pulseaudio pulseaudio-utils libpipewire-0.3-dev
           libgbm-dev libwayland-dev libegl-dev libopenblas-dev mold
 
+    - name: Verify and install libopenblas-dev
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libopenblas-dev
+        ldconfig -p | grep libopenblas || echo "Warning: libopenblas not found in ldconfig"
+        dpkg -l | grep openblas || echo "Warning: openblas package not listed"
+
     - name: Set up Rust
       uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
