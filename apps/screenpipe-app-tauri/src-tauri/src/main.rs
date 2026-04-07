@@ -1056,8 +1056,7 @@ async fn main() {
                 .with_writer(std::io::stdout)
                 .with_filter(EnvFilter::new("info,hyper=error,tower_http=error,whisper_rs=warn,audiopipe=warn"));
 
-            // Initialize the tracing subscriber with both layers + optional Sentry layer
-            // The Sentry layer captures error!() and warn!() events (not just panics)
+            // Initialize the tracing subscriber with both layers
             let registry = tracing_subscriber::registry()
                 .with(file_layer)
                 .with(console_layer);
@@ -1065,13 +1064,7 @@ async fn main() {
             #[cfg(target_os = "macos")]
             let registry = registry.with(OsLogger::new("pe.screenpi", "app"));
 
-            if sentry_guard.is_some() {
-                registry
-                    .with(sentry::integrations::tracing::layer())
-                    .init();
-            } else {
-                registry.init();
-            }
+            registry.init();
 
             // Windows-specific setup
             if cfg!(windows) {
