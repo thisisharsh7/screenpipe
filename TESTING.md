@@ -53,6 +53,9 @@ commits that broke this area: `0752ea59`, `d89c5f14`, `4a64fd1a`, `fa591d6e`, `8
 - [ ] **space monitor only hides main overlay** — swipe Spaces. main overlay hides. chat window and shortcut reminder are unaffected.
 - [ ] **space monitor doesn't race with show** — show overlay via shortcut. the `activateIgnoringOtherApps` call must not trigger space monitor's hide callback.
 - [ ] **Chat streaming UX** — Verify that chat streaming uses a state-aware grid dissolve loader for a smooth user experience.
+- [ ] **Chat UI retry, branch, and rename** — Verify that the chat UI supports retrying a prompt, branching into a new chat, and renaming chat sessions correctly. (`c9c3bb41c`)
+- [ ] **resizable shortcut overlay** — Toggle between small/medium/large overlay sizes in settings. Verify the overlay resizes accordingly and persists across app restarts. (`1e1e17171`)
+- [ ] **overlay size support (Windows/Linux)** — On Windows/Linux, verify that the webview fallback for the overlay correctly respects the size settings. (`d095f5994`)
 - [ ] **chat always-on-top toggle** — Toggle the "chat always-on-top" setting and verify that the chat window behaves as expected (e.g., stays on top of other applications when enabled). (`b6c363e5`)
 - [ ] **text selection not blocked by URL overlays** — On URL-heavy pages, verify that text selection is not blocked by clickable URL overlays. (`eb9e65b4`)
 - [ ] **macOS focused-app capture with AX observers** — On macOS, verify that focused-app capture works correctly when switching between applications, utilizing AX observers. (`22830119`)
@@ -78,6 +81,9 @@ commits that broke this area: `0752ea59`, `7562ec62`, `2a2bd9b5`, `f2f7f770`, `5
 - [ ] **no autosave_name crash** — removed in `2a2bd9b5`. objc2→objc pointer cast was causing `panic_cannot_unwind`.
 - [ ] **no recreate_tray** — recreating tray pushes icon LEFT (behind notch). must only create once (`f2f7f770`).
 - [ ] **tray upgrade button opens in-app checkout** — Verify that clicking the tray's upgrade button correctly opens the in-app checkout experience. (`078fcfb2`)
+- [ ] **tray recording toggle** — Verify that the tray icon has a single "Record" (when off) / "Recording" (when on) toggle instead of separate start/stop buttons. (`cdc1d0fd9`, `5a47bc9ea`)
+- [ ] **tray privacy indicator** — Verify that a privacy indicator appears in the tray menu when recording is active. (`74093ccd8`)
+- [ ] **instant tray feedback** — Start/stop recording from the tray. Verify the menu items update instantly to reflect the new state. (`5aa94eefd`)
 - [ ] **modernized tray menu** — Verify the tray menu's updated layout and functionality match the modernized design. (`b6c363e5`)
 
 ### 3. monitor plug/unplug
@@ -156,6 +162,8 @@ commits: calendar_speaker_id.rs, meetings.rs, meeting_persister.rs
 - [ ] **speaker search deduplication** — Search for speakers in the UI. Verify that results are deduplicated and reassignment targets are stable. (`34a62c053`)
 - [ ] **meeting detection regardless of transcription mode** — Verify that meeting detection works even when transcription is disabled. (`ef39e728d`)
 - [ ] **Windows UI Automation meeting detection** — On Windows, join a meeting in a supported app (Zoom, Teams, etc.). Verify detection works via UI element scanning rather than just process focus. (`fe905d6af`, `01eb9cf33`)
+- [ ] **meeting summarize sparkle button** — Open the meeting summary UI and click the "sparkle" button. Verify it correctly triggers an AI-generated meeting summary. (`b048d8b96`)
+- [ ] **local timezone schedule parsing** — Schedule an event like "every day at 9am". Verify it uses the local machine's timezone, not UTC. (`cad9a327e`, `c9fd825fb`)
 - [ ] **macOS Zoom menu bar detection** — On macOS, join a Zoom meeting. Verify detection works even if Zoom window is not focused, by scanning menu bar items. (`849372fa9`)
 - [ ] **Meeting detection app coverage** — Verify detection works for 35+ supported apps and various browser URL patterns. (`e6740eb38`)
 - [ ] **Meeting detection UI labels** — Verify meeting status shows "starts in Xm" and filters all-day events correctly. (`ef470d9e1`)
@@ -236,6 +244,7 @@ commits: `94531265`, `d794176a`, `9070639c`, `0378cab1`, `4a3313d3`, `7ffdd4f1`,
 - [ ] **clean quit via Cmd+Q** — same verification.
 - [ ] **force quit recovery** — force quit app. relaunch. database is intact. recording resumes.
 - [ ] **sleep/wake** — close laptop lid, wait 10s, open. recording resumes within 5s. no crash (`9070639c`).
+- [ ] **sleep/wake (Windows/Linux)** — On Windows/Linux, verify that the app correctly detects system sleep and wake events, resuming capture automatically. (`f519281b5`)
 - [ ] **restart app** — quit and relaunch. all settings preserved. recording starts automatically.
 - [ ] **Cross-platform autorelease pool** — Verify that Windows and Linux builds compile and run without issues related to macOS-specific autorelease pool calls. (`851b3037c`)
 - [ ] **Main thread safety (macOS)** — Verify that tray icon operations, space monitoring, and frontmost app restoration are dispatched to the main thread to prevent crashes. (`ac46aa437`, `418826dfa`, `274826dfa`)
@@ -299,6 +308,7 @@ commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`
 - [ ] **FPS setting** — change capture FPS. recording interval changes accordingly.
 - [ ] **language/OCR engine setting** — change OCR language. new language used on next capture cycle.
 - [ ] **video quality setting** — low/balanced/high/max. affects FFmpeg encoding params (`21bddd0f`).
+- [ ] **AI Toggle: Local vs. Cloud** — Toggle between "Local AI" and "Screenpipe Cloud" in settings. Verify that suggestions and chat use the selected backend, and that Cloud provides smarter suggestions. (`c21f3e9b7`)
 - [ ] **Settings UI sentence case** — All settings UI elements (billing, pipes, team) should use consistent sentence case.
 - [ ] **Billing page links to website** — Verify that the in-app billing page correctly links to the *new* website billing page.
 - [ ] **Non-pro subscriber Whisper fallback** — As a non-pro subscriber, verify that audio transcription defaults to `whisper-large-v3-turbo-quantized` and functions correctly.
@@ -602,6 +612,8 @@ commits: `8c8c445c`
 commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`, `5908d7f4`, `46422869`, `4f43da70`, `71a1a537`, `6abaaa36`, `f3e55dbc`, `8e426dec`, `1289f51e`, `4bc9ff1a`, `c336f73d`, `2f7416ae`
 
 - [ ] **Pi process stability** — After app launch, `ps aux | grep pi` should show a single, stable `pi` process that doesn't restart or get killed.
+- [ ] **Pipe PID lock** — Attempt to run the same pipe multiple times. Verify that a PID file lock prevents duplicate execution. (`48b1c6fb5`)
+- [ ] **OAuth token auto-refresh** — Configure a pipe that uses ChatGPT OAuth. Verify that the token is automatically refreshed if expired before the pipe executes. (`0ecf2a9a5`)
 - [ ] **Pi readiness handshake** — First chat interaction with Pi should be fast (<2s for readiness).
 - [ ] **Pi auto-recovery** — If the `pi` process is manually killed, it should restart automatically within a few seconds and be ready for chat.
 - [ ] **Pipe output accuracy** — When executing a pipe, the user's prompt should be accurately reflected in the output.
