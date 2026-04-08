@@ -53,6 +53,7 @@ commits that broke this area: `0752ea59`, `d89c5f14`, `4a64fd1a`, `fa591d6e`, `8
 - [ ] **space monitor only hides main overlay** — swipe Spaces. main overlay hides. chat window and shortcut reminder are unaffected.
 - [ ] **space monitor doesn't race with show** — show overlay via shortcut. the `activateIgnoringOtherApps` call must not trigger space monitor's hide callback.
 - [ ] **Chat streaming UX** — Verify that chat streaming uses a state-aware grid dissolve loader for a smooth user experience.
+- [ ] **Chat UI enhancements** — Verify that the chat UI supports retrying messages, branching into a new chat from a message, and renaming chats. (`c9c3bb41c`)
 - [ ] **chat always-on-top toggle** — Toggle the "chat always-on-top" setting and verify that the chat window behaves as expected (e.g., stays on top of other applications when enabled). (`b6c363e5`)
 - [ ] **text selection not blocked by URL overlays** — On URL-heavy pages, verify that text selection is not blocked by clickable URL overlays. (`eb9e65b4`)
 - [ ] **macOS focused-app capture with AX observers** — On macOS, verify that focused-app capture works correctly when switching between applications, utilizing AX observers. (`22830119`)
@@ -79,6 +80,8 @@ commits that broke this area: `0752ea59`, `7562ec62`, `2a2bd9b5`, `f2f7f770`, `5
 - [ ] **no recreate_tray** — recreating tray pushes icon LEFT (behind notch). must only create once (`f2f7f770`).
 - [ ] **tray upgrade button opens in-app checkout** — Verify that clicking the tray's upgrade button correctly opens the in-app checkout experience. (`078fcfb2`)
 - [ ] **modernized tray menu** — Verify the tray menu's updated layout and functionality match the modernized design. (`b6c363e5`)
+- [ ] **Tray recording toggle** — Verify that the tray has a single toggle for recording that shows "Record" when off and "Recording" when on. (`cdc1d0fd9`, `5aa94eefd`)
+- [ ] **Tray privacy indicator** — Verify that a platform-neutral privacy indicator is shown in the tray menu when recording is active. (`74093ccd8`, `9ea75c8d7`)
 
 ### 3. monitor plug/unplug
 
@@ -89,6 +92,7 @@ commits: `28e5c247`
 - [ ] **unplug and replug same monitor** — recording resumes. same monitor ID reused. no duplicate recording tasks.
 - [ ] **unplug all external monitors (laptop only)** — built-in display continues recording. no crash.
 - [ ] **plug monitor with different resolution** — recording starts at correct resolution. OCR works on new monitor.
+- [ ] **Audio stream disconnect handling** — Verify that audio stream disconnections are correctly handled as errors instead of failing silently. (`bc11de2ec`)
 - [ ] **"use all monitors" setting** — with this ON, all monitors auto-detected. no manual configuration needed.
 - [ ] **specific monitor IDs setting** — with specific IDs configured, only those monitors are recorded. unplugging a non-configured monitor has no effect.
 - [ ] **resolution change (e.g., clamshell mode)** — closing MacBook lid with external monitor. recording continues on external.
@@ -159,6 +163,7 @@ commits: calendar_speaker_id.rs, meetings.rs, meeting_persister.rs
 - [ ] **macOS Zoom menu bar detection** — On macOS, join a Zoom meeting. Verify detection works even if Zoom window is not focused, by scanning menu bar items. (`849372fa9`)
 - [ ] **Meeting detection app coverage** — Verify detection works for 35+ supported apps and various browser URL patterns. (`e6740eb38`)
 - [ ] **Meeting detection UI labels** — Verify meeting status shows "starts in Xm" and filters all-day events correctly. (`ef470d9e1`)
+- [ ] **Meeting indicator (phone icon)** — Verify that the phone icon (meeting indicator) shows for all active meetings, including Teams, Zoom, and manual meetings. (`ded6d8a37`)
 
 ### 5. frame comparison & OCR pipeline
 
@@ -306,6 +311,8 @@ commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`
 - [ ] **Web search disabled for non-cloud providers** — When using a non-cloud AI provider, verify that web search functionality is correctly disabled.
 - [ ] **Credit balance in billing UI and errors** — Verify that the billing UI accurately displays the credit balance and clearly differentiates between `credits_exhausted` and other LLM-related errors.
 - [ ] **Unknown AI provider type sanitization** — Configure a malformed or unknown AI provider type (e.g., by manual config edit). Verify the app doesn't crash on startup or when navigating to settings, and gracefully handles the unknown type.
+- [ ] **Enterprise managed AI presets** — On enterprise builds, verify that AI presets are automatically applied from the enterprise policy and cannot be overridden by the user. (`b764783bf`, `2d34b00ee`)
+- [ ] **Enhanced AI toggle** — Toggle the "Enhanced AI" setting and verify it uses Screenpipe Cloud for smarter suggestions. (`c21f3e9b7`)
 
 commits: `8a5f51dd`, `0b0d8090`
 
@@ -447,6 +454,9 @@ commits: `eea0c865`, `fe9060db`, `c99c3967`, `aeaa446b`, `5a219688`, `caae1ebc`,
 - [ ] **No console flash during GPU detection** — On Windows startup, verify that no temporary console window flashes during the GPU detection process. (`a0aba1643`)
 - [ ] **Filter noisy system apps** — On Windows, verify that noisy system apps are filtered out from screen capture and do not appear in the timeline or search results.
 - [ ] **Settings window instead of overlay** — On Windows, verify that the Settings window is used instead of the overlay for settings, and the shortcut toggle works correctly. (`c13e21b55`)
+- [ ] **Windows in-place updates** — Verify that the app recovers from stale Tauri store resource IDs after an in-place update on Windows (settings should persist). (`74c62af4e`)
+- [ ] **Sleep/Wake detection (Win/Linux)** — Verify that recording correctly pauses on sleep and resumes on wake on Windows and Linux. (`f519281b5`)
+- [ ] **Resizable shortcut overlay (Win/Linux fallback)** — Verify the shortcut overlay can be resized (small/medium/large) and that it renders correctly on Windows/Linux using the webview fallback. (`d095f5994`, `1e1e17171`)
 
 commits: `eea0c865`, `fe9060db`, `c99c3967`, `aeaa446b`, `5a219688`, `caae1ebc`, `67caf1d1`
 
@@ -643,6 +653,9 @@ commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`,
 - [ ] **Pipe Suggestions Scheduler** — Verify that pipe suggestions are displayed according to the scheduled intervals. (`41c8b8085`)
 - [ ] **Pipe store stability** — verify null guards, sharp corners, unpublish functionality, and data unwrap fixes. (`603c84f7b`)
 - [ ] **Pi agent & search timeouts** — Run a long-running search or Pi agent task. Verify it doesn't timeout prematurely at 60s (should allow up to 120s for search). (`f01213cf5`)
+- [ ] **Pipe frontmatter triggers** — Verify that trigger configurations in pipe `pipe.md` frontmatter (e.g., cron schedules) are correctly parsed and applied. (`dd286f0eb`)
+- [ ] **Pipe PID locking** — Verify that a pipe cannot be executed concurrently multiple times (prevents duplicate execution via PID file lock). (`48b1c6fb5`)
+- [ ] **Natural language schedule parsing** — Verify that natural language schedules like "every day at 9am" and weekday formats are parsed correctly and use the local timezone. (`c9fd825fb`, `cad9a327e`)
 
 commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`, `5908d7f4`, `46422869`, `4f43da70`, `71a1a537`, `6abaaa36`
 
