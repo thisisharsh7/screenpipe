@@ -32,7 +32,7 @@ struct ShortcutConfig {
 }
 
 impl ShortcutConfig {
-    async fn from_store(app: &AppHandle) -> Result<Self, String> {
+    fn from_store(app: &AppHandle) -> Result<Self, String> {
         let store = SettingsStore::get(app)
             .unwrap_or_default()
             .unwrap_or_default();
@@ -86,7 +86,7 @@ impl ShortcutConfig {
     }
 }
 
-async fn register_shortcut(
+fn register_shortcut(
     app: &AppHandle,
     shortcut_str: &str,
     is_disabled: bool,
@@ -115,7 +115,7 @@ async fn register_shortcut(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn update_global_shortcuts(
+pub fn update_global_shortcuts(
     app: AppHandle,
     show_shortcut: String,
     start_shortcut: String,
@@ -124,7 +124,7 @@ pub async fn update_global_shortcuts(
     stop_audio_shortcut: String,
     _profile_shortcuts: HashMap<String, String>,
 ) -> Result<(), String> {
-    let store_config = ShortcutConfig::from_store(&app).await?;
+    let store_config = ShortcutConfig::from_store(&app)?;
     let config = ShortcutConfig {
         show: show_shortcut,
         start: start_shortcut,
@@ -136,15 +136,15 @@ pub async fn update_global_shortcuts(
         lock_vault: store_config.lock_vault,
         disabled: store_config.disabled,
     };
-    apply_shortcuts(&app, &config).await
+    apply_shortcuts(&app, &config)
 }
 
-pub async fn initialize_global_shortcuts(app: &AppHandle) -> Result<(), String> {
-    let config = ShortcutConfig::from_store(app).await?;
-    apply_shortcuts(app, &config).await
+pub fn initialize_global_shortcuts(app: &AppHandle) -> Result<(), String> {
+    let config = ShortcutConfig::from_store(app)?;
+    apply_shortcuts(app, &config)
 }
 
-async fn apply_shortcuts(app: &AppHandle, config: &ShortcutConfig) -> Result<(), String> {
+fn apply_shortcuts(app: &AppHandle, config: &ShortcutConfig) -> Result<(), String> {
     let global_shortcut = app.global_shortcut();
     if let Err(e) = global_shortcut.unregister_all() {
         error!("failed to unregister all shortcuts: {}", e);
@@ -185,7 +185,7 @@ async fn apply_shortcuts(app: &AppHandle, config: &ShortcutConfig) -> Result<(),
             }
         });
     })
-    .await?;
+    ?;
 
     register_shortcut(
         app,
@@ -195,7 +195,7 @@ async fn apply_shortcuts(app: &AppHandle, config: &ShortcutConfig) -> Result<(),
             let _ = app.emit("shortcut-start-recording", ());
         },
     )
-    .await?;
+    ?;
 
     register_shortcut(
         app,
@@ -205,7 +205,7 @@ async fn apply_shortcuts(app: &AppHandle, config: &ShortcutConfig) -> Result<(),
             let _ = app.emit("shortcut-stop-recording", ());
         },
     )
-    .await?;
+    ?;
 
     register_shortcut(
         app,
@@ -220,7 +220,7 @@ async fn apply_shortcuts(app: &AppHandle, config: &ShortcutConfig) -> Result<(),
             info!("start audio shortcut triggered");
         },
     )
-    .await?;
+    ?;
 
     register_shortcut(
         app,
@@ -235,7 +235,7 @@ async fn apply_shortcuts(app: &AppHandle, config: &ShortcutConfig) -> Result<(),
             info!("stop audio shortcut triggered");
         },
     )
-    .await?;
+    ?;
 
     register_shortcut(
         app,
@@ -270,7 +270,7 @@ async fn apply_shortcuts(app: &AppHandle, config: &ShortcutConfig) -> Result<(),
             });
         },
     )
-    .await?;
+    ?;
 
     register_shortcut(app, &config.search, config.is_disabled("search"), |app| {
         let app_for_closure = app.clone();
@@ -281,14 +281,14 @@ async fn apply_shortcuts(app: &AppHandle, config: &ShortcutConfig) -> Result<(),
             let _ = ShowRewindWindow::Search { query: None }.show(app);
         });
     })
-    .await?;
+    ?;
 
     Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn suspend_global_shortcuts(app: AppHandle) -> Result<(), String> {
+pub fn suspend_global_shortcuts(app: AppHandle) -> Result<(), String> {
     let global_shortcut = app.global_shortcut();
     global_shortcut
         .unregister_all()
@@ -299,8 +299,8 @@ pub async fn suspend_global_shortcuts(app: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn resume_global_shortcuts(app: AppHandle) -> Result<(), String> {
-    initialize_global_shortcuts(&app).await?;
+pub fn resume_global_shortcuts(app: AppHandle) -> Result<(), String> {
+    initialize_global_shortcuts(&app)?;
     info!("global shortcuts resumed after recording");
     Ok(())
 }
