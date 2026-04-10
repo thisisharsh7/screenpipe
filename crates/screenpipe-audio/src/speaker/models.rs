@@ -54,10 +54,15 @@ pub async fn get_or_download_model(model_type: PyannoteModel) -> Result<PathBuf>
 
     // Check in-memory cache
     {
-        let cached = model_path_lock.lock().await;
+        let mut cached = model_path_lock.lock().await;
         if let Some(path) = cached.as_ref() {
-            debug!("using cached {} model: {:?}", filename, path);
-            return Ok(path.clone());
+            if path.exists() {
+                debug!("using cached {} model: {:?}", filename, path);
+                return Ok(path.clone());
+            } else {
+                debug!("cached {} model no longer exists on disk, clearing cache", filename);
+                *cached = None;
+            }
         }
     }
 
@@ -222,4 +227,51 @@ async fn download_model(model_type: &PyannoteModel) -> Result<()> {
 fn get_cache_dir() -> Result<PathBuf> {
     let proj_dirs = dirs::cache_dir().ok_or_else(|| anyhow::anyhow!("failed to get cache dir"))?;
     Ok(proj_dirs.join("screenpipe").join("models"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[tokio::test]
+    async fn test_model_cache_invalidation() {
+        // We will simulate a download, cache it, delete the file, then ask again
+        let cache_dir = get_cache_dir().unwrap();
+        let _ = fs::create_dir_all(&cache_dir);
+        let path = cache_dir.join("segmentation-3.0.onnx");
+        
+        // Touch the file so it exists
+        fs::write(&path, "dummy").unwrap();
+
+        // 1. First call should cache it
+        let res1 = get_or_download_model(PyannoteModel::Segmentation).await.unwrap();
+        assert_eq!(res1, path);
+
+        // Verify it's in memory cache
+        {
+            let cached = SEGMENTATION_MODEL_PATH.lock().await;
+            assert!(cached.is_some());
+        }
+
+        // 2. Delete the file
+        fs::remove_file(&path).unwrap();
+
+        // 3. Second call should see it missing and NOT return it
+        // Note: this might trigger an actual download if we don't mock it, 
+        // but it will definitely not just return Ok(path) immediately if the fix works.
+        // Let's just check that it clears the cache and attempts download, returning an error since it's missing or downloading.
+        let res2 = get_or_download_model(PyannoteModel::Segmentation).await;
+        // With our fix, it clears cache, falls through to disk check (fails), then starts download and returns Err("...download started in background")
+        assert!(res2.is_err(), "Expected error because file was deleted, but got: {:?}", res2);
+        
+        // Verify it's cleared from memory cache
+        {
+            let cached = SEGMENTATION_MODEL_PATH.lock().await;
+            assert!(cached.is_none());
+        }
+        
+        // Cleanup download flag
+        SEGMENTATION_DOWNLOADING.store(false, Ordering::SeqCst);
+    }
 }
