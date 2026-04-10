@@ -1636,8 +1636,9 @@ async fn main() {
                 scheduler_handle: suggestions_state.scheduler_handle.clone(),
                 enhanced_ai: suggestions_state.enhanced_ai.clone(),
             };
+            let app_handle_sugg = app_handle.clone();
             tauri::async_runtime::spawn(async move {
-                suggestions::auto_start_scheduler(&suggestions_state_clone).await;
+                suggestions::auto_start_scheduler(app_handle_sugg, &suggestions_state_clone).await;
             });
 
             // Auto-start pipe suggestions scheduler if enabled

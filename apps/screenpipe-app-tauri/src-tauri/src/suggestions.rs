@@ -78,8 +78,10 @@ impl SuggestionsState {
 #[tauri::command]
 #[specta::specta]
 pub async fn get_cached_suggestions(
+    app: tauri::AppHandle,
     state: tauri::State<'_, SuggestionsState>,
 ) -> Result<CachedSuggestions, String> {
+    let port = crate::store::SettingsStore::get(&app).ok().flatten().map(|s| s.recording.port).unwrap_or(3030);
     let guard = state.cache.lock().await;
     if let Some(cached) = guard.clone() {
         return Ok(cached);
@@ -88,7 +90,7 @@ pub async fn get_cached_suggestions(
 
     // Cache is empty (app just started) — do a quick template generation
     // using current data so the UI shows personalized suggestions immediately.
-    let (apps, windows) = tokio::join!(fetch_app_activity(), fetch_window_activity());
+    let (apps, windows) = tokio::join!(fetch_app_activity(port), fetch_window_activity(port));
     let apps = apps.unwrap_or_default();
     let windows = windows.unwrap_or_default();
     let mode = detect_mode(&apps, &windows);
@@ -118,10 +120,12 @@ pub async fn get_cached_suggestions(
 #[tauri::command]
 #[specta::specta]
 pub async fn force_regenerate_suggestions(
+    app: tauri::AppHandle,
     state: tauri::State<'_, SuggestionsState>,
 ) -> Result<CachedSuggestions, String> {
+    let port = crate::store::SettingsStore::get(&app).ok().flatten().map(|s| s.recording.port).unwrap_or(3030);
     let enhanced = state.enhanced_ai.lock().await.clone();
-    let cached = generate_suggestions(enhanced.as_ref()).await?;
+    let cached = generate_suggestions(enhanced.as_ref(), port).await?;
     let mut guard = state.cache.lock().await;
     *guard = Some(cached.clone());
     Ok(cached)
@@ -148,10 +152,11 @@ pub async fn set_enhanced_ai_suggestions(
 
 /// Auto-start the suggestions scheduler on app launch.
 /// Regenerates on a 10-min timer AND reactively on meeting start/end events.
-pub async fn auto_start_scheduler(state: &SuggestionsState) {
+pub async fn auto_start_scheduler(app: tauri::AppHandle, state: &SuggestionsState) {
     let cache = state.cache.clone();
     let handle_arc = state.scheduler_handle.clone();
     let enhanced_ai = state.enhanced_ai.clone();
+    let app_clone = app.clone();
 
     let handle = tokio::spawn(async move {
         info!("suggestions scheduler: started (10-min interval + event triggers)");
@@ -200,9 +205,10 @@ pub async fn auto_start_scheduler(state: &SuggestionsState) {
 
             // Read current enhanced AI config (picks up setting changes each cycle)
             let enhanced = enhanced_ai.lock().await.clone();
+            let port = crate::store::SettingsStore::get(&app_clone).ok().flatten().map(|s| s.recording.port).unwrap_or(3030);
 
             // Fetch activity & generate suggestions
-            match generate_suggestions(enhanced.as_ref()).await {
+            match generate_suggestions(enhanced.as_ref(), port).await {
                 Ok(cached) => {
                     debug!(
                         "suggestions scheduler: generated {} suggestions (mode={}, ai={}, trigger={})",
@@ -1158,12 +1164,11 @@ fn template_suggestions(
 
 // ─── Suggestion generation ──────────────────────────────────────────────────
 
-const API: &str = "http://localhost:3030";
 
-async fn fetch_app_activity() -> Result<Vec<AppActivity>, String> {
+async fn fetch_app_activity(port: u16) -> Result<Vec<AppActivity>, String> {
     let client = reqwest::Client::new();
     let resp = client
-        .post(format!("{}/raw_sql", API))
+        .post(format!("http://localhost:{}/raw_sql", port))
         .json(&serde_json::json!({
             "query": "SELECT app_name, COUNT(*) as cnt FROM frames WHERE datetime(timestamp) > datetime('now', '-30 minutes') AND app_name != '' AND app_name != 'screenpipe' AND app_name != 'screenpipe-app' GROUP BY app_name ORDER BY cnt DESC LIMIT 15"
         }))
@@ -1180,10 +1185,10 @@ async fn fetch_app_activity() -> Result<Vec<AppActivity>, String> {
         .map_err(|e| format!("parse app activity: {}", e))
 }
 
-async fn fetch_window_activity() -> Result<Vec<WindowActivity>, String> {
+async fn fetch_window_activity(port: u16) -> Result<Vec<WindowActivity>, String> {
     let client = reqwest::Client::new();
     let resp = client
-        .post(format!("{}/raw_sql", API))
+        .post(format!("http://localhost:{}/raw_sql", port))
         .json(&serde_json::json!({
             "query": "SELECT app_name, window_name, COUNT(*) as cnt FROM frames WHERE datetime(timestamp) > datetime('now', '-30 minutes') AND app_name != '' AND app_name != 'screenpipe' AND app_name != 'screenpipe-app' AND window_name != '' GROUP BY app_name, window_name ORDER BY cnt DESC LIMIT 20"
         }))
@@ -1200,9 +1205,9 @@ async fn fetch_window_activity() -> Result<Vec<WindowActivity>, String> {
         .map_err(|e| format!("parse window activity: {}", e))
 }
 
-async fn check_ai_available() -> bool {
+async fn check_ai_available(port: u16) -> bool {
     let resp = reqwest::Client::new()
-        .get(format!("{}/ai/status", API))
+        .get(format!("http://localhost:{}/ai/status", port))
         .timeout(std::time::Duration::from_secs(3))
         .send()
         .await;
@@ -1235,10 +1240,10 @@ struct AudioSnippet {
     speaker_name: Option<String>,
 }
 
-async fn fetch_accessibility_snippets() -> Vec<AccessibilitySnippet> {
+async fn fetch_accessibility_snippets(port: u16) -> Vec<AccessibilitySnippet> {
     let client = reqwest::Client::new();
     let resp = client
-        .post(format!("{}/raw_sql", API))
+        .post(format!("http://localhost:{}/raw_sql", port))
         .json(&serde_json::json!({
             "query": "SELECT app_name, window_name, SUBSTR(text_content, 1, 200) as snippet FROM accessibility WHERE datetime(timestamp) > datetime('now', '-15 minutes') AND LENGTH(text_content) > 30 AND app_name != 'screenpipe' ORDER BY timestamp DESC LIMIT 8"
         }))
@@ -1252,10 +1257,10 @@ async fn fetch_accessibility_snippets() -> Vec<AccessibilitySnippet> {
     }
 }
 
-async fn fetch_audio_snippets() -> Vec<AudioSnippet> {
+async fn fetch_audio_snippets(port: u16) -> Vec<AudioSnippet> {
     let client = reqwest::Client::new();
     let resp = client
-        .post(format!("{}/raw_sql", API))
+        .post(format!("http://localhost:{}/raw_sql", port))
         .json(&serde_json::json!({
             "query": "SELECT SUBSTR(at.transcription, 1, 200) as transcription, at.device, s.name as speaker_name FROM audio_transcriptions at LEFT JOIN speakers s ON at.speaker_id = s.id WHERE datetime(at.timestamp) > datetime('now', '-30 minutes') AND LENGTH(at.transcription) > 10 ORDER BY at.timestamp DESC LIMIT 6"
         }))
@@ -1269,10 +1274,10 @@ async fn fetch_audio_snippets() -> Vec<AudioSnippet> {
     }
 }
 
-async fn fetch_ocr_snippets() -> Vec<String> {
+async fn fetch_ocr_snippets(port: u16) -> Vec<String> {
     let client = reqwest::Client::new();
     let resp = client
-        .post(format!("{}/raw_sql", API))
+        .post(format!("http://localhost:{}/raw_sql", port))
         .json(&serde_json::json!({
             "query": "SELECT SUBSTR(ot.text, 1, 150) as snippet FROM ocr_text ot JOIN frames f ON ot.frame_id = f.id WHERE datetime(f.timestamp) > datetime('now', '-15 minutes') AND LENGTH(ot.text) > 20 ORDER BY RANDOM() LIMIT 5"
         }))
@@ -1297,10 +1302,10 @@ async fn fetch_ocr_snippets() -> Vec<String> {
     }
 }
 
-async fn count_accessibility_rows() -> i64 {
+async fn count_accessibility_rows(port: u16) -> i64 {
     let client = reqwest::Client::new();
     let resp = client
-        .post(format!("{}/raw_sql", API))
+        .post(format!("http://localhost:{}/raw_sql", port))
         .json(&serde_json::json!({
             "query": "SELECT COUNT(*) as cnt FROM accessibility WHERE datetime(timestamp) > datetime('now', '-30 minutes')"
         }))
@@ -1327,7 +1332,7 @@ async fn count_accessibility_rows() -> i64 {
 
 /// Build a context string that fits within ~4500 chars (~1100 tokens) using
 /// the best available data sources. Priority: accessibility > OCR, always audio.
-async fn build_activity_context(apps: &[AppActivity], windows: &[WindowActivity]) -> String {
+async fn build_activity_context(port: u16, apps: &[AppActivity], windows: &[WindowActivity]) -> String {
     const MAX_CHARS: usize = 4500;
     let mut parts = Vec::new();
     let mut char_budget = MAX_CHARS;
@@ -1358,7 +1363,7 @@ async fn build_activity_context(apps: &[AppActivity], windows: &[WindowActivity]
 
     // 3. Audio transcriptions — always include if available (~1500 chars budget)
     let audio_budget = char_budget / 3;
-    let audio = fetch_audio_snippets().await;
+    let audio = fetch_audio_snippets(port).await;
     if !audio.is_empty() {
         parts.push("Recent audio/speech:".to_string());
         let mut used = 0;
@@ -1376,10 +1381,10 @@ async fn build_activity_context(apps: &[AppActivity], windows: &[WindowActivity]
     }
 
     // 4. Screen content: prefer accessibility (structured) over OCR (noisy)
-    let has_accessibility = count_accessibility_rows().await > 5;
+    let has_accessibility = count_accessibility_rows(port).await > 5;
 
     if has_accessibility {
-        let snippets = fetch_accessibility_snippets().await;
+        let snippets = fetch_accessibility_snippets(port).await;
         if !snippets.is_empty() {
             parts.push("Screen content (accessibility):".to_string());
             let mut used = 0;
@@ -1399,7 +1404,7 @@ async fn build_activity_context(apps: &[AppActivity], windows: &[WindowActivity]
             );
         }
     } else {
-        let snippets = fetch_ocr_snippets().await;
+        let snippets = fetch_ocr_snippets(port).await;
         if !snippets.is_empty() {
             parts.push("Screen text (OCR):".to_string());
             let mut used = 0;
@@ -1451,6 +1456,7 @@ struct AiResult {
 const SCREENPIPE_CLOUD_API: &str = "https://api.screenpi.pe/v1";
 
 async fn generate_ai_suggestions(
+    port: u16,
     mode: &str,
     apps: &[AppActivity],
     windows: &[WindowActivity],
@@ -1461,12 +1467,12 @@ async fn generate_ai_suggestions(
         .as_ref()
         .map_or(false, |c| c.enabled && !c.token.is_empty());
 
-    if !use_cloud && !check_ai_available().await {
+    if !use_cloud && !check_ai_available(port).await {
         info!("suggestions: Apple Intelligence not available and enhanced AI not enabled, using templates");
         return None;
     }
 
-    let context = build_activity_context(apps, windows).await;
+    let context = build_activity_context(port, apps, windows).await;
 
     debug!(
         "suggestions: AI prompt ~{} tokens, backend={}",
@@ -1501,7 +1507,7 @@ async fn generate_ai_suggestions(
         // Apple Intelligence (on-device)
         let prompt = format!("{}Activity mode: {}\n\n{}", AI_SYSTEM_PROMPT, mode, context);
         client
-            .post(format!("{}/ai/chat/completions", API))
+            .post(format!("http://localhost:{}/ai/chat/completions", port))
             .json(&serde_json::json!({
                 "messages": [
                     {"role": "user", "content": prompt}
@@ -1645,8 +1651,9 @@ fn extract_json_object(content: &str) -> Option<String> {
 
 async fn generate_suggestions(
     enhanced_ai: Option<&EnhancedAIConfig>,
+    port: u16,
 ) -> Result<CachedSuggestions, String> {
-    let (apps, windows) = tokio::join!(fetch_app_activity(), fetch_window_activity());
+    let (apps, windows) = tokio::join!(fetch_app_activity(port), fetch_window_activity(port));
     let apps = apps.unwrap_or_default();
     let windows = windows.unwrap_or_default();
 
@@ -1662,7 +1669,7 @@ async fn generate_suggestions(
 
     // Try AI-powered suggestions + tags in one call
     let (suggestions, tags, ai_generated) =
-        match generate_ai_suggestions(mode, &apps, &windows, enhanced_ai).await {
+        match generate_ai_suggestions(port, mode, &apps, &windows, enhanced_ai).await {
             Some(result) => {
                 info!(
                     "suggestions: AI generated {} suggestions + {} tags",
@@ -1693,7 +1700,7 @@ async fn generate_suggestions(
     if !tags.is_empty() {
         let tags_clone = tags.clone();
         tokio::spawn(async move {
-            if let Err(e) = store_tags(&tags_clone).await {
+            if let Err(e) = store_tags(port, &tags_clone).await {
                 warn!("suggestions: failed to store tags: {}", e);
             }
         });
@@ -1718,12 +1725,12 @@ fn generate_heuristic_tags(mode: &str, top_apps: &[String]) -> Vec<String> {
 }
 
 /// Store AI-generated tags on recent frames using the existing tags + vision_tags tables.
-async fn store_tags(tags: &[String]) -> Result<(), String> {
+async fn store_tags(port: u16, tags: &[String]) -> Result<(), String> {
     let client = reqwest::Client::new();
 
     // Get recent frame IDs (last 10 minutes, sample up to 10)
     let resp = client
-        .post(format!("{}/raw_sql", API))
+        .post(format!("http://localhost:{}/raw_sql", port))
         .json(&serde_json::json!({
             "query": "SELECT id FROM frames WHERE timestamp >= datetime('now', '-10 minutes') ORDER BY timestamp DESC LIMIT 10"
         }))
@@ -1754,7 +1761,7 @@ async fn store_tags(tags: &[String]) -> Result<(), String> {
     let mut tagged = 0;
     for frame in &frames {
         let resp = client
-            .post(format!("{}/tags/vision/{}", API, frame.id))
+            .post(format!("http://localhost:{}/tags/vision/{}", port, frame.id))
             .json(&tag_body)
             .timeout(std::time::Duration::from_secs(5))
             .send()
@@ -1972,12 +1979,12 @@ mod tests {
     #[ignore] // requires screenpipe running locally
     async fn benchmark_data_sources() {
         // Verify all data sources return data
-        let apps = fetch_app_activity().await.unwrap_or_default();
-        let windows = fetch_window_activity().await.unwrap_or_default();
-        let accessibility = fetch_accessibility_snippets().await;
-        let audio = fetch_audio_snippets().await;
-        let ocr = fetch_ocr_snippets().await;
-        let acc_count = count_accessibility_rows().await;
+        let apps = fetch_app_activity(port).await.unwrap_or_default();
+        let windows = fetch_window_activity(port).await.unwrap_or_default();
+        let accessibility = fetch_accessibility_snippets(port).await;
+        let audio = fetch_audio_snippets(port).await;
+        let ocr = fetch_ocr_snippets(port).await;
+        let acc_count = count_accessibility_rows(port).await;
 
         println!("\n=== Data Source Availability ===");
         println!("  apps:          {} entries", apps.len());
@@ -2024,7 +2031,7 @@ mod tests {
         }
 
         // Verify context builder respects budget
-        let context = build_activity_context(&apps, &windows).await;
+        let context = build_activity_context(port, &apps, &windows).await;
         let est_tokens = context.len() / 4;
         println!("\n=== Context Builder ===");
         println!(
@@ -2043,14 +2050,14 @@ mod tests {
     #[tokio::test]
     #[ignore] // requires screenpipe + Apple Intelligence
     async fn benchmark_ai_suggestion_quality() {
-        let ai_available = check_ai_available().await;
+        let ai_available = check_ai_available(port).await;
         if !ai_available {
             println!("\n=== SKIP: Apple Intelligence not available ===");
             return;
         }
 
-        let apps = fetch_app_activity().await.unwrap_or_default();
-        let windows = fetch_window_activity().await.unwrap_or_default();
+        let apps = fetch_app_activity(port).await.unwrap_or_default();
+        let windows = fetch_window_activity(port).await.unwrap_or_default();
         if apps.is_empty() {
             println!("\n=== SKIP: no activity data ===");
             return;
@@ -2060,7 +2067,7 @@ mod tests {
         let top_apps: Vec<String> = apps.iter().take(6).map(|a| a.app_name.clone()).collect();
 
         // Collect speaker names from audio
-        let audio = fetch_audio_snippets().await;
+        let audio = fetch_audio_snippets(port).await;
         let speakers: Vec<String> = audio
             .iter()
             .filter_map(|a| a.speaker_name.clone())
@@ -2182,16 +2189,16 @@ mod tests {
     #[ignore] // requires screenpipe running locally
     async fn benchmark_context_builder_coverage() {
         // Test that the context builder uses the right data source
-        let acc_count = count_accessibility_rows().await;
-        let apps = fetch_app_activity().await.unwrap_or_default();
-        let windows = fetch_window_activity().await.unwrap_or_default();
+        let acc_count = count_accessibility_rows(port).await;
+        let apps = fetch_app_activity(port).await.unwrap_or_default();
+        let windows = fetch_window_activity(port).await.unwrap_or_default();
 
         if apps.is_empty() {
             println!("\n=== SKIP: no activity data ===");
             return;
         }
 
-        let context = build_activity_context(&apps, &windows).await;
+        let context = build_activity_context(port, &apps, &windows).await;
 
         println!("\n=== Context Coverage ===");
         println!("  accessibility rows (30min): {}", acc_count);

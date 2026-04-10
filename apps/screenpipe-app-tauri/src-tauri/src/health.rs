@@ -331,7 +331,12 @@ pub async fn start_health_check(app: tauri::AppHandle) -> Result<()> {
             interval.tick().await;
 
             let theme = dark_light::detect().unwrap_or(Mode::Dark);
-            let health_result = check_health(&client).await;
+            let port = crate::store::SettingsStore::get(&app)
+                .ok()
+                .flatten()
+                .map(|s| s.recording.port)
+                .unwrap_or(3030);
+            let health_result = check_health(&client, port).await;
 
             // Track consecutive failures (connection errors) and unhealthy responses separately.
             // Connection errors = server unreachable (crash, restart, port conflict).
@@ -642,9 +647,9 @@ async fn show_capture_stall_notification(app: &tauri::AppHandle, system: &str) -
 
 /// Checks the health of the sidecar by making a request to its health endpoint.
 /// Returns an error if the sidecar is not running or not responding.
-async fn check_health(client: &reqwest::Client) -> Result<HealthCheckResponse> {
+async fn check_health(client: &reqwest::Client, port: u16) -> Result<HealthCheckResponse> {
     match client
-        .get("http://localhost:3030/health")
+        .get(format!("http://localhost:{}/health", port))
         .header("Cache-Control", "no-cache")
         .header("Pragma", "no-cache")
         .timeout(Duration::from_secs(5)) // on windows it never times out

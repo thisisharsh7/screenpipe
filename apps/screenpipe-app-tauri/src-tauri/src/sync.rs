@@ -172,7 +172,13 @@ pub async fn set_sync_enabled(state: State<'_, SyncState>, enabled: bool) -> Res
 /// Trigger an immediate sync via the screenpipe server.
 #[tauri::command]
 #[specta::specta]
-pub async fn trigger_sync(state: State<'_, SyncState>) -> Result<(), String> {
+pub async fn trigger_sync(app: AppHandle, state: State<'_, SyncState>) -> Result<(), String> {
+    let port = crate::store::SettingsStore::get(&app)
+        .ok()
+        .flatten()
+        .map(|s| s.recording.port)
+        .unwrap_or(3030);
+
     let enabled = *state.enabled.read().await;
     if !enabled {
         return Err("sync is not enabled".to_string());
@@ -199,7 +205,7 @@ pub async fn trigger_sync(state: State<'_, SyncState>) -> Result<(), String> {
     tokio::spawn(async move {
         let client = reqwest::Client::new();
         let result = client
-            .post("http://localhost:3030/sync/trigger")
+            .post(&format!("http://localhost:{}/sync/trigger", port))
             .send()
             .await;
 
@@ -307,16 +313,22 @@ pub async fn remove_sync_device(
 #[tauri::command]
 #[specta::specta]
 pub async fn delete_device_local_data(
+    app: AppHandle,
     state: State<'_, SyncState>,
     machine_id: String,
 ) -> Result<String, String> {
+    let port = crate::store::SettingsStore::get(&app)
+        .ok()
+        .flatten()
+        .map(|s| s.recording.port)
+        .unwrap_or(3030);
     if machine_id == state.machine_id {
         return Err("cannot delete your own device's local data".to_string());
     }
 
     let client = reqwest::Client::new();
     let resp = client
-        .post("http://localhost:3030/data/delete-device")
+        .post(&format!("http://localhost:{}/data/delete-device", port))
         .json(&serde_json::json!({ "machine_id": machine_id }))
         .send()
         .await
@@ -342,6 +354,11 @@ pub async fn init_sync(
     _settings: State<'_, SettingsStore>,
     password: String,
 ) -> Result<bool, String> {
+    let port = crate::store::SettingsStore::get(&app)
+        .ok()
+        .flatten()
+        .map(|s| s.recording.port)
+        .unwrap_or(3030);
     // Get auth token from FRESH settings (not managed state which may be stale)
     // The managed SettingsStore is loaded once at startup and doesn't update when user logs in
     let fresh_settings = SettingsStore::get(&app)
@@ -407,7 +424,7 @@ pub async fn init_sync(
     });
 
     match client
-        .post("http://localhost:3030/sync/init")
+        .post(&format!("http://localhost:{}/sync/init", port))
         .json(&init_request)
         .send()
         .await
@@ -442,6 +459,12 @@ pub async fn init_sync(
 #[tauri::command]
 #[specta::specta]
 pub async fn lock_sync(app: AppHandle, state: State<'_, SyncState>) -> Result<(), String> {
+    let port = crate::store::SettingsStore::get(&app)
+        .ok()
+        .flatten()
+        .map(|s| s.recording.port)
+        .unwrap_or(3030);
+
     // Lock local manager
     let manager_guard = state.manager.read().await;
     if let Some(manager) = manager_guard.as_ref() {
@@ -458,7 +481,7 @@ pub async fn lock_sync(app: AppHandle, state: State<'_, SyncState>) -> Result<()
 
     // Lock server sync service
     let client = reqwest::Client::new();
-    match client.post("http://localhost:3030/sync/lock").send().await {
+    match client.post(&format!("http://localhost:{}/sync/lock", port)).send().await {
         Ok(response) if response.status().is_success() => {
             info!("server sync service locked");
         }
@@ -473,6 +496,12 @@ pub async fn lock_sync(app: AppHandle, state: State<'_, SyncState>) -> Result<()
 /// Auto-start cloud sync on app launch if previously enabled.
 /// Called from main.rs during startup.
 pub async fn auto_start_sync(app: &AppHandle, state: &SyncState) {
+    let port = crate::store::SettingsStore::get(app)
+        .ok()
+        .flatten()
+        .map(|s| s.recording.port)
+        .unwrap_or(3030);
+
     // Only auto-start if user previously enabled sync and saved a password
     let password = match CloudSyncSettingsStore::get(app) {
         Ok(Some(s)) if s.enabled && !s.encrypted_password.is_empty() => {
@@ -558,7 +587,7 @@ pub async fn auto_start_sync(app: &AppHandle, state: &SyncState) {
     });
 
     match client
-        .post("http://localhost:3030/sync/init")
+        .post(&format!("http://localhost:{}/sync/init", port))
         .json(&init_request)
         .send()
         .await
@@ -587,6 +616,12 @@ pub async fn auto_start_sync(app: &AppHandle, state: &SyncState) {
 /// Called from main.rs during startup (after sync auto-start so archive can
 /// reuse the sync manager if available).
 pub async fn auto_start_archive(app: &AppHandle) {
+    let port = crate::store::SettingsStore::get(app)
+        .ok()
+        .flatten()
+        .map(|s| s.recording.port)
+        .unwrap_or(3030);
+
     // Check dedicated cloud_archive store key first, then fall back to
     // reading cloudArchiveEnabled from the main settings extra fields
     // (for users who enabled archive before this auto-start was added).
@@ -654,7 +689,7 @@ pub async fn auto_start_archive(app: &AppHandle) {
         }
 
         match client
-            .post("http://localhost:3030/archive/init")
+            .post(&format!("http://localhost:{}/archive/init", port))
             .json(&init_request)
             .send()
             .await
@@ -671,7 +706,7 @@ pub async fn auto_start_archive(app: &AppHandle) {
                 // Already initialized — make sure it's enabled
                 let enable_req = serde_json::json!({ "enabled": true });
                 if let Err(e) = client
-                    .post("http://localhost:3030/archive/configure")
+                    .post(&format!("http://localhost:{}/archive/configure", port))
                     .json(&enable_req)
                     .send()
                     .await
@@ -717,6 +752,7 @@ pub async fn auto_start_retention(app: &AppHandle) {
         Ok(Some(s)) => s,
         _ => return,
     };
+    let port = settings.recording.port;
 
     let enabled = settings
         .extra
@@ -741,7 +777,7 @@ pub async fn auto_start_retention(app: &AppHandle) {
     });
 
     match client
-        .post("http://localhost:3030/retention/configure")
+        .post(&format!("http://localhost:{}/retention/configure", port))
         .json(&configure_req)
         .send()
         .await
