@@ -708,7 +708,10 @@ impl SCServer {
             }
         }
 
-        let router = router.nest("/connections", crate::connections_api::router(cm, wa));
+        let router = router.nest(
+            "/connections",
+            crate::connections_api::router(cm, wa, self.secret_store.clone()),
+        );
 
         // Power management routes (if power manager is available)
         let router = if let Some(ref pm) = self.power_manager {

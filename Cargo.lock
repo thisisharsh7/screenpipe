@@ -7115,9 +7115,9 @@ dependencies = [
 name = "screenpipe-secrets"
 version = "0.1.0"
 dependencies = [
- "aes-gcm",
  "anyhow",
  "base64 0.22.1",
+ "chacha20poly1305",
  "rand 0.8.5",
  "serde",
  "serde_json",
