@@ -482,10 +482,17 @@ export function AIProviderConfig({
             className="flex h-8 items-center justify-center gap-1.5 text-xs px-3"
             onClick={() => {
               setSelectedProvider("custom");
+              
+              let newModel = formData.model || "";
+              if (newModel.startsWith("openai/")) {
+                newModel = newModel.replace("openai/", "");
+              }
+              
               setFormData({
                 ...formData,
                 provider: "custom",
                 url: "http://localhost:11434/v1",
+                model: newModel,
               });
             }}
           >
@@ -586,33 +593,26 @@ export function AIProviderConfig({
             </div>
             <div className="space-y-1">
               <Label htmlFor="model" className="text-xs">model</Label>
-              <Select
-                value={formData.model}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, model: value })
-                }
-              >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue
-                    placeholder={
-                      isLoadingModels ? "loading models..." : "select model"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {openaiModels.length > 0 ? (
-                    openaiModels.map((model) => (
-                      <SelectItem key={model.id} value={model.id}>
-                        {model.id}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="no-models" disabled>
-                      {isLoadingModels ? "loading..." : "no models found"}
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+              <div className="relative">
+                <Input
+                  id="model"
+                  type="text"
+                  list="custom-models"
+                  placeholder={isLoadingModels ? "loading..." : "e.g. gpt-4o or qwen2"}
+                  value={formData.model || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, model: e.target.value })
+                  }
+                  className="h-8 text-sm"
+                />
+                {openaiModels.length > 0 && (
+                  <datalist id="custom-models">
+                    {openaiModels.map((model) => (
+                      <option key={model.id} value={model.id} />
+                    ))}
+                  </datalist>
+                )}
+              </div>
             </div>
           </div>
         )}

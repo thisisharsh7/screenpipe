@@ -490,6 +490,9 @@ const AISection = ({
         break;
       case "custom":
         newUrl = settingsPreset?.url || "";
+        if (newModel && newModel.startsWith("openai/")) {
+          newModel = newModel.replace("openai/", "");
+        }
         break;
       case "openai-chatgpt":
         newUrl = "https://api.openai.com/v1";
