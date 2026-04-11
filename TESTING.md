@@ -85,6 +85,8 @@ commits that broke this area: `0752ea59`, `7562ec62`, `2a2bd9b5`, `f2f7f770`, `5
 - [ ] **tray upgrade button opens in-app checkout** — Verify that clicking the tray's upgrade button correctly opens the in-app checkout experience. (`078fcfb2`)
 - [ ] **modernized tray menu** — Verify the tray menu's updated layout and functionality match the modernized design. (`b6c363e5`)
 - [ ] **Recording toggle in tray** — Verify that the tray menu has a single toggle to start/stop recording (replacing separate items). (`cdc1d0fd9`)
+- [ ] **Per-device audio toggle from tray** — Open tray menu, verify you can toggle individual audio devices on/off. Verify state reflects in settings and actual recording. (`3ee3defcb`)
+- [ ] **Stable audio device order in tray** — Open tray menu multiple times. Verify the list of audio devices remains in a stable, consistent order. (`4577ac8a6`)
 
 ### 3. monitor plug/unplug
 
@@ -194,6 +196,8 @@ commits: `6dd5d98e`, `831ad258`
 - [ ] **reduced CPU spikes in vision/capture pipeline** — Actively browse and use applications, verifying that CPU spikes in the vision/capture pipeline are significantly reduced. (`8f7294e6`)
 - [ ] **OCR bounding boxes normalized on Windows/Linux** — On Windows and Linux, verify that OCR bounding boxes are correctly normalized to the 0-1 range, ensuring consistent text overlay and interaction. (`aba74513`)
 - [ ] **Debounced monitor capture errors** — Simulate transient monitor capture errors. Verify that these errors are debounced and do not lead to excessive error logging or app crashes.
+- [ ] **Full exclusion of ignored windows** — Add an app/window to the ignore list. Verify no black frames are recorded and it's blocked from all capture paths (SCK, accessibility, etc.). (`449ae7a68`, `2864489a0`, `fb4c00f21`, `6fc6dd7ce`)
+- [ ] **SCK stream stability on window changes** — Verify that transient window ID changes (resizing, tab switching) do not cause ScreenCaptureKit stream thrashing. (`e7e6699bb`)
 
 ### 6. Battery Saver Mode
 
@@ -304,8 +308,9 @@ commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`
 
 ### 10. AI presets & settings
 
-commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`
+commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`, `ec2a5789e`
 
+- [ ] **Standalone settings page** — Navigate to the standalone `/settings` page. Verify all tabs work correctly and settings persist across restarts. (`ec2a5789e`)
 - [ ] **Ollama not running** — creating an Ollama preset shows free-text input fields (not stuck loading). user can type model name manually (`8a5f51dd`).
 - [ ] **custom provider preset** — user can add a custom API endpoint. model name is free-text input with optional autocomplete.
 - [ ] **settings survive restart** — change any setting, quit, relaunch. setting is preserved.
@@ -366,6 +371,7 @@ commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`, `e61501da`, `039d5fea`,
 - [ ] **app context popover** — clicking app icon in timeline shows context (time, windows, urls, audio) (`be3ecffb`).
 - [ ] **Timeline single "current" bar** — Verify that the timeline only shows one "current time" bar, even during rapid updates. (`bcce42796`)
 - [ ] **Timeline "Calls" filter** — Verify the "Calls" filter on the timeline correctly filters for call-related events. (`0ff93b167`)
+- [ ] **Memories pagination & tag loading** — Navigate the Memories page. Verify tags load from API and pagination works without client-side re-sorting issues. (`3e00b70b4`)
 - [ ] **Collapsible timeline filters** — Verify that timeline filters can be collapsed and expanded correctly. (`0ff93b167`)
 - [ ] **daily summary in timeline** — Apple Intelligence summary shows in timeline, compact when no summary (`d9821624`).
 - [ ] **window-focused refresh** — opening app via shortcut/tray refreshes timeline data immediately (`0b057046`).
@@ -723,6 +729,7 @@ commits: `274a968af`, `dc575e48e`, `81aabbf18`, `d5e071854`, `db08f8c06`, `f4225
 - [ ] **Vault lock shortcut** — Verify that the configurable vault lock shortcut works as expected. (`81aabbf18`)
 - [ ] **CLI vault commands** — Verify that `screenpipe vault` commands work without the server running. (`f4225b580`)
 - [ ] **Skip server start on locked vault** — Verify that the server does not start if the vault is locked. (`d5e071854`)
+- [ ] **Settings store encryption** — Verify `store.bin` (settings) is encrypted at rest using the OS keychain. (`143875207`)
 
 ### 21. Privacy & Incognito Detection
 
@@ -732,6 +739,9 @@ commits: `ad431b513`, `d9722bccc`, `4df21e83d`
 - [ ] **Ignore incognito toggle** — Verify that the "Ignore Incognito Windows" toggle in settings correctly prevents recording of private windows. (`d9722bccc`)
 - [ ] **Incognito detection UI feedback** — Verify that the UI correctly reflects when an incognito window is being ignored.
 - [ ] **DRM pause behavior** — Play DRM-protected content (e.g., Netflix in Safari). Verify that Screenpipe pauses recording gracefully and resumes automatically once the DRM content is closed, without crashing the server. (`3d9f0e8bb`)
+- [ ] **API authentication toggle** — Toggle "API Authentication" in Settings -> Privacy. Verify requests to API require `Authorization: Bearer <key>`. (`cfc1a74e1`, `45b21eca3`, `09f18141a`)
+- [ ] **Filter extension popups & password fields** — Verify browser extension popups and password fields are filtered from accessibility tree (no sensitive data). (`d39e42e5b`, `8159641f5`, `52d20987a`)
+- [ ] **AI Gateway privacy (ZDR)** — Verify Chinese models route via Vertex MaaS and Zero Data Retention (ZDR) is active. (`1d88d254e`)
 
 commits: `fc830b43`
 
@@ -851,6 +861,7 @@ commits: `c8769545b`, `4f522325b`, `54000c295`
 - [ ] **New service connections** — Verify Brex, Stripe, Sentry, Vercel, Pipedrive, Intercom, and Limitless connections can be authorized and sync data. (`4f522325b`, `54000c295`)
 - [ ] **Multi-instance OAuth for GitHub and Notion** — Verify that multi-instance OAuth works for GitHub and Notion, including fetching identity after token exchange. (`5d6ee5da3`)
 - [ ] **Glean icon in connections grid** — Verify that the Glean icon is displayed in the connections grid. (`ec6374e1d`)
+- [ ] **Local Google OAuth** — Re-connect Google Calendar. Verify it uses the new local OAuth flow and correctly checks token validity. (`0177fdf2b`, `7ec561b82`)
 
 ### 28. Deployment & Remote Management
 
