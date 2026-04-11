@@ -19,7 +19,7 @@
 //! to ~5ms amortized over the entire batch.
 
 use chrono::{DateTime, Utc};
-use sqlx::{Pool, Sqlite};
+use sqlx::{Connection, Pool, Sqlite};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot, OwnedSemaphorePermit, Semaphore};
@@ -448,17 +448,9 @@ async fn execute_batch(
                 break;
             }
             Err(e) if is_nested_transaction_error(&e) => {
-                warn!("write_queue: BEGIN IMMEDIATE hit stuck transaction (attempt {}/{}), rolling back", attempt, max_retries);
-                match sqlx::query("ROLLBACK").execute(&mut *conn).await {
-                    Ok(_) => {
-                        debug!("write_queue: stuck transaction rolled back, connection recovered");
-                        drop(conn);
-                    }
-                    Err(rb_err) => {
-                        warn!("write_queue: ROLLBACK failed ({}), detaching connection as last resort", rb_err);
-                        let _raw = conn.detach();
-                    }
-                }
+                warn!("write_queue: BEGIN IMMEDIATE hit stuck transaction (attempt {}/{}), closing connection", attempt, max_retries);
+                let raw = conn.detach();
+                let _ = raw.close().await;
                 last_error = Some(e);
                 tokio::time::sleep(Duration::from_millis(50)).await;
                 continue;
@@ -520,8 +512,9 @@ async fn execute_batch(
     // COMMIT or ROLLBACK
     if any_fatal {
         if let Err(e) = sqlx::query("ROLLBACK").execute(&mut *conn).await {
-            warn!("write_queue: ROLLBACK failed: {}, detaching connection", e);
-            let _raw = conn.detach();
+            warn!("write_queue: ROLLBACK failed: {}, closing connection", e);
+            let raw = conn.detach();
+            let _ = raw.close().await;
         }
         // All results become errors on rollback
         for result in results.iter_mut() {
@@ -533,8 +526,9 @@ async fn execute_batch(
         warn!("write_queue: COMMIT failed: {}", e);
         let msg = e.to_string().to_lowercase();
         if !msg.contains("no transaction is active") {
-            warn!("write_queue: detaching connection due to commit failure");
-            let _raw = conn.detach();
+            warn!("write_queue: closing connection due to commit failure");
+            let raw = conn.detach();
+            let _ = raw.close().await;
         }
         // All results become the commit error
         for pw in batch.drain(..) {

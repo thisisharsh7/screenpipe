@@ -11,6 +11,7 @@ use sqlx::migrate::MigrateDatabase;
 use sqlx::pool::PoolConnection;
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
 use sqlx::Column;
+use sqlx::Connection;
 use sqlx::Error as SqlxError;
 use sqlx::Row;
 use sqlx::Sqlite;
@@ -126,9 +127,10 @@ impl Drop for ImmediateTx {
                         }
                         Err(e) => {
                             // ROLLBACK failed — connection is likely broken.
-                            // Detach as last resort so it doesn't poison the pool.
-                            warn!("ImmediateTx rollback failed ({}), detaching connection", e);
-                            let _raw = conn.detach();
+                            // Detach and close so it doesn't poison the pool.
+                            warn!("ImmediateTx rollback failed ({}), closing connection", e);
+                            let raw = conn.detach();
+                            let _ = raw.close().await;
                         }
                     }
                 });
@@ -413,31 +415,18 @@ impl DatabaseManager {
                     })
                 }
                 Err(e) if Self::is_nested_transaction_error(&e) => {
-                    // Connection has a stuck transaction — ROLLBACK it and retry.
-                    // Previous approach: detach the connection. Problem: detach
-                    // permanently removes the slot from the pool. After ~3 detaches
-                    // the write pool (max_connections=3) is dead and ALL writes fail
-                    // with PoolTimedOut forever until restart.
-                    // New approach: ROLLBACK cleans the connection so it returns to
-                    // the pool healthy. Only detach as last resort if ROLLBACK fails.
+                    // Connection has a stuck transaction.
+                    // We must completely discard this connection so the pool creates a new one.
+                    // We do NOT use ROLLBACK because if the connection is logically broken,
+                    // it might loop and fail repeatedly.
+                    // We call `detach()` and then `close().await` to ensure the underlying
+                    // OS handle is closed and the pool slot is properly freed.
                     warn!(
-                        "BEGIN IMMEDIATE hit stuck transaction (attempt {}/{}), rolling back",
+                        "BEGIN IMMEDIATE hit stuck transaction (attempt {}/{}), closing connection",
                         attempt, max_retries
                     );
-                    match sqlx::query("ROLLBACK").execute(&mut *conn).await {
-                        Ok(_) => {
-                            debug!("stuck transaction rolled back, connection recovered");
-                            // Connection is clean — drop returns it to pool
-                            drop(conn);
-                        }
-                        Err(rb_err) => {
-                            warn!(
-                                "ROLLBACK failed ({}), detaching connection as last resort",
-                                rb_err
-                            );
-                            let _raw = conn.detach();
-                        }
-                    }
+                    let raw = conn.detach();
+                    let _ = raw.close().await;
                     last_error = Some(e);
                     tokio::time::sleep(Duration::from_millis(50)).await;
                     continue;
