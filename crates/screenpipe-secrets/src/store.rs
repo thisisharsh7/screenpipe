@@ -77,20 +77,27 @@ impl SecretStore {
         match row {
             None => Ok(None),
             Some((stored_value, nonce)) => {
-                let plaintext = match &self.key {
-                    Some(enc_key) => {
-                        let nonce_arr: [u8; 12] = nonce
-                            .try_into()
-                            .map_err(|_| anyhow::anyhow!("invalid nonce length"))?;
-                        crypto::decrypt(&stored_value, &nonce_arr, enc_key)?
-                    }
-                    None => {
-                        // No encryption key — value is base64-encoded plaintext
-                        let decoded = BASE64
-                            .decode(&stored_value)
-                            .context("failed to decode base64 secret")?;
-                        decoded
-                    }
+                // Detect how the value was stored by checking the nonce:
+                // zero nonce = plaintext (base64-encoded), non-zero = encrypted.
+                // This handles the case where CLI stores with key=None and
+                // Tauri reads with key=Some (or vice versa).
+                let is_plaintext = nonce.iter().all(|&b| b == 0);
+
+                let plaintext = if is_plaintext {
+                    BASE64
+                        .decode(&stored_value)
+                        .context("failed to decode base64 secret")?
+                } else if let Some(enc_key) = &self.key {
+                    let nonce_arr: [u8; 12] = nonce
+                        .try_into()
+                        .map_err(|_| anyhow::anyhow!("invalid nonce length"))?;
+                    crypto::decrypt(&stored_value, &nonce_arr, enc_key)?
+                } else {
+                    // Value is encrypted but we don't have a key — can't decrypt
+                    anyhow::bail!(
+                        "secret '{}' is encrypted but no decryption key available",
+                        key
+                    );
                 };
                 Ok(Some(plaintext))
             }
@@ -234,5 +241,39 @@ mod tests {
                 .await
                 .unwrap();
         assert_ne!(row.0, b"sensitive data");
+    }
+
+    #[tokio::test]
+    async fn test_plaintext_written_read_by_encrypted_store() {
+        // CLI writes with key=None, Tauri reads with key=Some
+        // The zero nonce signals plaintext — should decode as base64
+        let pool = SqlitePool::connect(":memory:").await.unwrap();
+
+        // CLI: write with no key
+        let cli_store = SecretStore::new(pool.clone(), None).await.unwrap();
+        cli_store
+            .set("shared:secret", b"shared value")
+            .await
+            .unwrap();
+
+        // Tauri: read with encryption key
+        let key = [42u8; 32];
+        let app_store = SecretStore::new(pool.clone(), Some(key)).await.unwrap();
+        let val = app_store.get("shared:secret").await.unwrap().unwrap();
+        assert_eq!(val, b"shared value");
+    }
+
+    #[tokio::test]
+    async fn test_encrypted_written_read_by_plaintext_store() {
+        // Tauri writes encrypted, CLI reads without key — should error
+        let pool = SqlitePool::connect(":memory:").await.unwrap();
+
+        let key = [42u8; 32];
+        let app_store = SecretStore::new(pool.clone(), Some(key)).await.unwrap();
+        app_store.set("encrypted:only", b"secret").await.unwrap();
+
+        let cli_store = SecretStore::new(pool.clone(), None).await.unwrap();
+        let result = cli_store.get("encrypted:only").await;
+        assert!(result.is_err()); // can't decrypt without key
     }
 }
