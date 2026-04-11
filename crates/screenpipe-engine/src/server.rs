@@ -170,6 +170,8 @@ pub struct AppState {
     pub api_auth: bool,
     /// The API key to validate against (from SCREENPIPE_API_KEY or auth.json)
     pub api_auth_key: Option<String>,
+    /// Unified credential store for OAuth tokens, API keys, etc.
+    pub secret_store: Option<Arc<screenpipe_secrets::SecretStore>>,
 }
 
 pub struct SCServer {
@@ -475,6 +477,7 @@ impl SCServer {
             browser_bridge: crate::routes::browser::BrowserBridge::new(),
             api_auth: self.api_auth,
             api_auth_key: self.api_auth_key.clone(),
+            secret_store: None,
         });
 
         let cors = CorsLayer::new()
