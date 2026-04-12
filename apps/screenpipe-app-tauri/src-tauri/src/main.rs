@@ -313,8 +313,7 @@ async fn is_server_running(app: AppHandle) -> Result<bool, String> {
     Ok(response.is_ok())
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let _ = fix_path_env::fix();
 
     // Handle --check-arc-automation / --trigger-arc-automation flags early,
@@ -351,21 +350,24 @@ async fn main() {
             .find(|a| a.starts_with("screenpipe://"))
             .cloned();
 
-        if let Ok(resp) = reqwest::Client::new()
-            .post("http://127.0.0.1:11435/focus")
-            .timeout(std::time::Duration::from_secs(2))
-            .json(&serde_json::json!({
-                "args": args,
-                "deep_link_url": deep_link_url,
-            }))
-            .send()
-            .await
-        {
-            if resp.status().is_success() {
-                eprintln!("screenpipe: another instance is already running — focused existing window, exiting.");
-                std::process::exit(0);
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        rt.block_on(async {
+            if let Ok(resp) = reqwest::Client::new()
+                .post("http://127.0.0.1:11435/focus")
+                .timeout(std::time::Duration::from_secs(2))
+                .json(&serde_json::json!({
+                    "args": args,
+                    "deep_link_url": deep_link_url,
+                }))
+                .send()
+                .await
+            {
+                if resp.status().is_success() {
+                    eprintln!("screenpipe: another instance is already running — focused existing window, exiting.");
+                    std::process::exit(0);
+                }
             }
-        }
+        });
     }
 
     // Check if telemetry is disabled via store setting (analyticsEnabled) or offline mode
