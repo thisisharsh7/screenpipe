@@ -173,6 +173,9 @@ commits: calendar_speaker_id.rs, meetings.rs, meeting_persister.rs
 - [ ] **Meeting detection support for Signal, WhatsApp, Telegram, and Teams 2** — Verify that meetings from these apps are correctly detected and recorded. (`8d2f1a542`, `a74e393e1`)
 - [ ] **Browser meetings splitting fix** — Verify that meetings in the browser are correctly split into separate events. (`d8ba1dad3`)
 - [ ] **OpenAI-compatible transcription endpoint** — Verify that the `/v1/audio/transcriptions` endpoint works as expected, following the OpenAI specification. (`5a14e9a92`)
+- [ ] **Bluetooth-aware gap detection** — Connect/disconnect Bluetooth audio during recording. Verify silence is inserted during gaps and recording resumes correctly without crashing. (`192f8b2ca`)
+- [ ] **Audio shutdown sequence** — Stop recording. Verify no "last-chunk" data loss by checking that producers stop before consumers. (`bf2bd22eb`)
+- [ ] **Per-device audio toggle** — In the tray menu, toggle individual audio devices. Verify that only selected devices are recorded. (`3ee3defcb`)
 
 ### 5. frame comparison & OCR pipeline
 
@@ -296,15 +299,9 @@ commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`
 - [ ] **Data directory setting location** — Verify that the data directory setting is now located in the "Storage" tab of the settings menu. (`0d3ffe30a`)
 - [ ] **store.bin encryption** — Enable "Encrypt store.bin" in settings (Privacy > Security). Verify that `store.bin` is encrypted and correctly decrypted on startup using the OS keychain. (`143875207`, `aee1cd2b5`, `85ecd7935`)
 - [ ] **graceful keychain denial** — On macOS, deny keychain access for store encryption. Verify the app handles it gracefully and falls back to unencrypted store if necessary or warns the user. (`b9c01b916`)
-
-- [ ] **slow DB insert warning** — check logs. "Slow DB batch insert" warnings should be <1s in normal operation. >3s indicates contention.
-- [ ] **concurrent DB access** — UI queries + recording inserts happening simultaneously. no "database is locked" errors.
-- [ ] **store race condition** — rapidly toggle settings while recording is active. no crash (`eea0c865`).
-- [ ] **event listener race condition** — Tauri event listener setup during rapid window creation. no crash (`cc09de61`).
-- [ ] **UTF-8 boundary panic** — search with special characters, non-ASCII text in OCR results. no panic on string slicing (`eea0c865`).
-- [ ] **low disk space** — with <1GB free, app should warn user. no crash from failed writes.
-- [ ] **large database (>10GB)** — search still returns results within 2 seconds. app doesn't freeze on startup.
-- [ ] **Audio chunk timestamps** — `start_time` and `end_time` are correctly set for reconciled and retranscribed audio chunks in the database.
+- [ ] **Unified Credential Store (SecretStore)** — Add a new connection (e.g., WhatsApp, Telegram). Verify credentials are saved in the unified SecretStore and NOT in legacy flat files. (`7113d62ec`)
+- [ ] **SecretStore re-migration** — Simulate a computer migration (change encryption key). Verify that secrets are re-migrated/re-encrypted correctly without losing data. (`8c3867c9a`)
+- [ ] **OAuth native refresh** — For OAuth connections, verify that `SecretStore` handles token refresh natively and legacy OAuth files are deleted after successful migration. (`14262dc72`, `f429691db`, `385131236`)
 
 ### 10. AI presets & settings
 
@@ -341,6 +338,7 @@ commits: `8a5f51dd`, `0b0d8090`
 - [ ] **language/OCR engine setting** — change OCR language. new language used on next capture cycle.
 - [ ] **video quality setting** — low/balanced/high/max. affects FFmpeg encoding params (`21bddd0f`).
 - [ ] **Settings UI sentence case** — All settings UI elements (billing, pipes, team) should use consistent sentence case.
+- [ ] **DeepSeek/Qwen via Vertex** — Select DeepSeek R1 or Qwen3 models in settings (Vertex provider). Verify they function correctly via the gateway. (`df5224a49`)
 
 ### 11. onboarding
 
@@ -744,6 +742,11 @@ commits: `ad431b513`, `d9722bccc`, `4df21e83d`
 - [ ] **Ignore incognito toggle** — Verify that the "Ignore Incognito Windows" toggle in settings correctly prevents recording of private windows. (`d9722bccc`)
 - [ ] **Incognito detection UI feedback** — Verify that the UI correctly reflects when an incognito window is being ignored.
 - [ ] **DRM pause behavior** — Play DRM-protected content (e.g., Netflix in Safari). Verify that Screenpipe pauses recording gracefully and resumes automatically once the DRM content is closed, without crashing the server. (`3d9f0e8bb`)
+- [ ] **Ignored windows full block** — Add a window to the ignore list. Verify it is fully blocked from all capture paths (no black frames, no OCR, no a11y). (`449ae7a68`, `2864489a0`, `fb400f21`)
+- [ ] **Monitor enumeration when vision disabled** — Disable vision in settings. Verify that monitors are NOT enumerated via SCK, reducing overhead. (`151ef70d4`)
+- [ ] **Optional API auth** — Enable "API Auth" in settings (or use `--api-auth`). Verify that API requests require a valid token and the toggle in the UI correctly persists the state. (`09f18141a`, `cf1a74e1`)
+- [ ] **Password field exclusion** — Verify that password field values are NOT captured in the accessibility tree on Windows and Linux. (`8159641f5`, `d39e42e5b`)
+- [ ] **Browser extension popup filtering** — Verify that browser extension popups (like Bitwarden) are filtered and not captured in the accessibility tree or as black frames. (`52d20987a`, `449ae7a68`, `931db40b6`)
 
 commits: `fc830b43`
 
@@ -837,6 +840,7 @@ grep -E "FoundationModels|apple.intelligence|fm_generate" ~/.screenpipe/screenpi
 commits: `cf2dcd5f8`, `ad1d00d8f`, `6f623b30a`, `aaf031169`
 
 - [ ] **WhatsApp gateway auto-restart** — Manually terminate the WhatsApp gateway process. Verify the watchdog restarts it automatically. (`cf2dcd5f8`)
+- [ ] **WhatsApp session sweep** — Run WhatsApp connection. After first run, verify that session permission sweeps are skipped to improve performance. (`271503bad`)
 - [ ] **WhatsApp gateway self-termination** — Kill the main screenpipe process. Verify the WhatsApp gateway process also terminates. (`ad1d00d8f`)
 - [ ] **WhatsApp history & contacts sync** — Verify that WhatsApp chat history and contacts are correctly synchronized. (`aaf031169`)
 - [ ] **WhatsApp auto-reconnect** — Verify the WhatsApp gateway automatically reconnects on server start. (`6f623b30a`)
