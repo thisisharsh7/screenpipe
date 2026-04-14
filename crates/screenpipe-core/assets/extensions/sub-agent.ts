@@ -10,15 +10,15 @@
 //
 // Safeguards:
 // - Max 3 concurrent, 10 total per run
-// - 60s timeout per sub-agent
+// - 5 min timeout per sub-agent
 // - No nesting (SCREENPIPE_SUBAGENT env blocks recursive spawning)
+// - Sub-agents inherit pipe token for screenpipe API auth
 // - All children killed on parent exit
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 // Prevent nesting — sub-agents must not spawn further sub-agents
 if (process.env.SCREENPIPE_SUBAGENT === "1") {
-  // Export a no-op so the extension loader doesn't error
   module.exports = function (_pi: ExtensionAPI) {};
 } else {
   module.exports = createSubAgentExtension;
@@ -28,7 +28,7 @@ if (process.env.SCREENPIPE_SUBAGENT === "1") {
 
 const MAX_CONCURRENT = 3;
 const MAX_TOTAL = 10;
-const TIMEOUT_MS = 60_000;
+const TIMEOUT_MS = 5 * 60_000; // 5 minutes
 
 // ── State ────────────────────────────────────────────────────────────────────
 
@@ -40,24 +40,28 @@ const childPids = new Set<number>();
 
 function killAllChildren() {
   for (const pid of childPids) {
-    try {
-      process.kill(pid, "SIGTERM");
-    } catch {
-      // already dead — ignore
-    }
+    try { process.kill(pid, "SIGTERM"); } catch {}
   }
   childPids.clear();
 }
 
 process.on("exit", killAllChildren);
-process.on("SIGTERM", () => {
-  killAllChildren();
-  process.exit(0);
-});
-process.on("SIGINT", () => {
-  killAllChildren();
-  process.exit(0);
-});
+process.on("SIGTERM", () => { killAllChildren(); process.exit(0); });
+process.on("SIGINT", () => { killAllChildren(); process.exit(0); });
+
+// ── Read pipe permissions for sub-agent inheritance ──────────────────────────
+
+let pipeToken: string | null = null;
+
+try {
+  const fs = require("fs");
+  const path = require("path");
+  const permPath = path.join(process.cwd(), ".screenpipe-permissions.json");
+  if (fs.existsSync(permPath)) {
+    const parsed = JSON.parse(fs.readFileSync(permPath, "utf-8"));
+    pipeToken = parsed.pipe_token || null;
+  }
+} catch {}
 
 // ── Sub-agent spawner ────────────────────────────────────────────────────────
 
@@ -65,44 +69,36 @@ async function spawnSubAgent(prompt: string): Promise<string> {
   const { spawn } = require("child_process");
   const parentPid = process.pid;
 
-  return new Promise((resolve, reject) => {
-    const child = spawn(
-      "bun",
-      [
-        require.resolve("@mariozechner/pi-coding-agent/dist/main.js"),
-        "--mode",
-        "print",
-        "--no-session",
-        "--provider",
-        process.env.PI_PROVIDER || "screenpipe",
-        "--model",
-        process.env.PI_MODEL || "auto",
-        "-p",
-        prompt,
-      ],
-      {
-        cwd: process.cwd(),
-        stdio: ["ignore", "pipe", "pipe"],
-        env: {
-          ...process.env,
-          SCREENPIPE_SUBAGENT: "1",
-          SCREENPIPE_PARENT_PID: String(parentPid),
-        },
-      }
-    );
+  // Inject auth token so sub-agent can call screenpipe API
+  let authHint = "";
+  if (pipeToken) {
+    authHint = `\n\nWhen calling the screenpipe API (localhost:3030), include: -H "Authorization: Bearer ${pipeToken}"`;
+  }
 
-    if (child.pid) {
-      childPids.add(child.pid);
-    }
+  return new Promise((resolve, reject) => {
+    const child = spawn("bun", [
+      require.resolve("@mariozechner/pi-coding-agent/dist/main.js"),
+      "--mode", "print",
+      "--no-session",
+      "--provider", process.env.PI_PROVIDER || "screenpipe",
+      "--model", process.env.PI_MODEL || "auto",
+      "-p", prompt + authHint,
+    ], {
+      cwd: process.cwd(),
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        SCREENPIPE_SUBAGENT: "1",
+        SCREENPIPE_PARENT_PID: String(parentPid),
+      },
+    });
+
+    if (child.pid) childPids.add(child.pid);
 
     let stdout = "";
     let stderr = "";
-    child.stdout.on("data", (d: Buffer) => {
-      stdout += d.toString();
-    });
-    child.stderr.on("data", (d: Buffer) => {
-      stderr += d.toString();
-    });
+    child.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
+    child.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
 
     const timer = setTimeout(() => {
       child.kill("SIGTERM");
@@ -113,11 +109,7 @@ async function spawnSubAgent(prompt: string): Promise<string> {
       clearTimeout(timer);
       if (child.pid) childPids.delete(child.pid);
       if (code !== 0) {
-        reject(
-          new Error(
-            `Sub-agent exited with code ${code}: ${stderr.slice(-200)}`
-          )
-        );
+        reject(new Error(`Sub-agent exited with code ${code}: ${stderr.slice(-200)}`));
       } else {
         resolve(stdout.trim() || "(sub-agent produced no output)");
       }
@@ -134,61 +126,51 @@ async function spawnSubAgent(prompt: string): Promise<string> {
 // ── Extension entry point ────────────────────────────────────────────────────
 
 function createSubAgentExtension(pi: ExtensionAPI) {
-  // Inject usage docs into system prompt
   pi.on("before_agent_start", async (event: any) => {
     const docs = `
 
 ## Sub-Agents
 
-You can run tasks in parallel using sub-agents. Each sub-agent gets its own context and runs independently.
+Delegate independent tasks to sub-agents that run in parallel.
 
-To spawn a sub-agent:
+**Usage:**
 \`\`\`bash
-sub-agent run "Your task description here. Be specific about what to do and what to return."
+sub-agent run "Your focused task. Include specific API endpoints, data to query, and output format."
 \`\`\`
 
-Guidelines:
-- Use sub-agents for independent tasks that can run simultaneously
-- Each sub-agent only sees the prompt you give it, not your conversation
-- Include any URLs, API endpoints, or data the sub-agent needs in the prompt
-- Max 3 concurrent, 10 total per run
-- 60s timeout per sub-agent
+**Rules:**
+- Each sub-agent is isolated — it only sees the prompt you give it, not your conversation
+- Sub-agents can use bash (curl screenpipe API at localhost:3030)
+- You have ${MAX_CONCURRENT} concurrent slots and ${MAX_TOTAL} total per run
+- Each sub-agent has a ${TIMEOUT_MS / 1000}s timeout — keep tasks focused
+- Results are returned as text — parse them in your main context
+- Sub-agents CANNOT spawn other sub-agents
+
+**Use for:** parallel screenpipe queries, independent research, breaking analysis into pieces
+**Don't use for:** tasks needing previous results, simple single queries, tasks needing your context
 `;
 
-    return {
-      systemPrompt: (event.systemPrompt || "") + docs,
-    };
+    return { systemPrompt: (event.systemPrompt || "") + docs };
   });
 
-  // Intercept bash commands matching `sub-agent run "..."`
   pi.on("tool_call", async (event: any) => {
     if (event.tool !== "bash" && event.name !== "bash") return;
     const cmd: string = event.input?.command || "";
 
-    // Match: sub-agent run "prompt"
     const match = cmd.match(/^sub-agent\s+run\s+"([\s\S]+)"$/);
     if (!match) return;
 
-    // Enforce limits
     if (activeCount >= MAX_CONCURRENT) {
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: "Error: max concurrent sub-agents (3) reached. Wait for running ones to finish.",
-          },
-        ],
+        content: [{ type: "text" as const,
+          text: `Error: ${MAX_CONCURRENT} concurrent sub-agents already running. Wait for one to finish. (${activeCount} active, ${totalSpawned}/${MAX_TOTAL} total used)` }],
         isError: true,
       };
     }
     if (totalSpawned >= MAX_TOTAL) {
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: "Error: max sub-agents per run (10) reached.",
-          },
-        ],
+        content: [{ type: "text" as const,
+          text: `Error: all ${MAX_TOTAL} sub-agent slots used. Work with the results you have.` }],
         isError: true,
       };
     }
@@ -196,18 +178,18 @@ Guidelines:
     const prompt = match[1];
     activeCount++;
     totalSpawned++;
+    const slotsLeft = MAX_TOTAL - totalSpawned;
 
     try {
       const result = await spawnSubAgent(prompt);
-      return { content: [{ type: "text" as const, text: result }] };
+      return {
+        content: [{ type: "text" as const,
+          text: `${result}\n\n[sub-agent done | ${slotsLeft} slots remaining | ${activeCount - 1} still active]` }],
+      };
     } catch (e: any) {
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Sub-agent failed: ${e.message}`,
-          },
-        ],
+        content: [{ type: "text" as const,
+          text: `Sub-agent failed: ${e.message}\n[${slotsLeft} slots remaining]` }],
         isError: true,
       };
     } finally {
