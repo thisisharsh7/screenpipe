@@ -100,6 +100,7 @@ commits: `28e5c247`
 - [ ] **resolution change (e.g., clamshell mode)** — closing MacBook lid with external monitor. recording continues on external.
 - [ ] **queue stats after unplug** — check logs. no queue stats for disconnected monitor after disconnect.
 - [ ] **--use-all-monitors flag override** — Verify that the `--use-all-monitors` CLI flag correctly overrides tier-based defaults (e.g., if a tier defaults to a single monitor, the flag should still enable all monitors). (`bd5b94328`)
+- [ ] **Numeric monitor IDs** — Use the `-m` flag with numeric monitor IDs (e.g., from `screenpipe-admin`). Verify only the specified monitor is recorded. (`fa57851b1`, `d9ffe7947`)
 
 ### 4. audio device handling
 
@@ -122,6 +123,10 @@ commits: `28e5c247`
 - [ ] **OpenAI-compatible transcription engine support** — Enable and configure the OpenAI-compatible transcription engine. Verify that audio is correctly captured and transcribed using this engine.
 - [ ] **"transcribing..." only for recent chunks** — Verify that the "transcribing..." caption/indicator only appears for audio chunks that are less than 2 minutes old. (`b70116b`)
 - [ ] **no transcribing caption on old silent chunks** — Verify that old silent audio chunks do not trigger or display a "transcribing..." caption. (`54a550f4`)
+- [ ] **Audio pause on screen lock** — Lock the screen (Cmd+Ctrl+Q). Verify audio recording pauses. Unlock the screen. Verify audio recording resumes. (`d6fa5dd36`)
+- [ ] **GPU serialization for MLX** — On Apple Silicon, verify that high audio load (multiple speakers/fast transcription) doesn't cause Metal command buffer crashes. (`dc0511014`, `a708378f1`)
+- [ ] **Wired mic gap detection logs** — Verify that logs are not flooded with "gap detected" messages when using a wired microphone. (`7ed75aede`)
+- [ ] **Cached ONNX model path** — Verify that audio transcription starts even if the cached ONNX model path is missing/corrupted by forcing a re-download. (`4931c5538`)
 - [ ] **silent chunks deleted, not stored** — After periods of silence, verify that no empty transcription rows are stored in the database for silent audio chunks, and they are instead correctly deleted. (`cb2cc205`)
 - [ ] **silent chunk zombie loop prevention** — Verify that silent audio chunks do not lead to a "zombie loop" resulting in excessive CPU usage or large log files. (`6b3a71eb`)
 - [ ] **write-ahead transcription cache performance** — Verify that the write-ahead transcription cache improves the performance and responsiveness of audio transcription. (`46350671`)
@@ -292,6 +297,7 @@ commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`
 - [ ] **pipe_config blobs skipped in sync** — Verify that `pipe_config` blobs are correctly skipped during synchronization, preventing unnecessary data transfer and potential issues. (`08d5c53a`)
 - [ ] **Pi's native auto-compaction for pipe session history** — Verify that Pi's native auto-compaction feature for pipe session history works as expected, preventing indefinite growth of history and maintaining performance. (`8f49e2cf`)
 - [ ] **UTF-8 panic with long multi-byte strings** — Introduce long strings with multi-byte UTF-8 characters (e.g., in window titles, chat input, search queries). Verify no panics occur when these strings are truncated, stored, or processed.
+- [ ] **Disk usage breakdown** — In Settings -> Privacy, verify the disk usage breakdown includes "Pipes" and "Other/Unaccounted" categories. (`1fad6c75e`)
 - [ ] **fsync snapshots before DB commit** — verify data integrity by force-quitting during heavy capture; snapshots should match DB entries. (`2e63282b8`)
 - [ ] **Data directory setting location** — Verify that the data directory setting is now located in the "Storage" tab of the settings menu. (`0d3ffe30a`)
 - [ ] **store.bin encryption** — Enable "Encrypt store.bin" in settings (Privacy > Security). Verify that `store.bin` is encrypted and correctly decrypted on startup using the OS keychain. (`143875207`, `aee1cd2b5`, `85ecd7935`)
@@ -327,6 +333,11 @@ commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`
 - [ ] **Unknown AI provider type sanitization** — Configure a malformed or unknown AI provider type (e.g., by manual config edit). Verify the app doesn't crash on startup or when navigating to settings, and gracefully handles the unknown type.
 - [ ] **standalone settings page** — Verify that clicking settings in the tray menu opens a standalone `/settings` page instead of a modal overlay. (`ec2a5789e`)
 - [ ] **optional API auth** — Enable API auth in settings (or via `--api-auth`). Verify that remote access to the API requires the configured token. (`09f18141a`, `cfc1a74e1`)
+- [ ] **Settings default tab** — Close and reopen settings. Verify it opens to the "Display" tab by default. (`0c2254321`)
+- [ ] **Localhost API auth** — Verify that API authentication is enforced even on localhost. Pipes and local scripts must use the API key. (`8cea07154`, `287074ef6`)
+- [ ] **API key copy button** — In Settings -> Privacy, verify the API key copy button is always visible and copies the correct auto-generated key. (`964ea0703`, `0701ff66f`)
+- [ ] **Credential proxy** — Run a pipe that requires credentials (e.g., Slack). Verify the pipe can make API calls without direct access to secrets via the proxy. (`950730689`, `746d7ff4c`)
+- [ ] **Enterprise Locked Settings** — (Enterprise) Verify that API auth settings are grayed out/locked when controlled by enterprise policy. (`3e15d1550`)
 - [ ] **privacy settings reordering** — Verify that the Security section appears first in the Privacy settings tab. (`4718785b6`)
 - [ ] **password field filtering** — Verify that password fields are skipped in the accessibility tree and not stored as OCR/text. (`8159641f5`, `d39e42e5b`)
 - [ ] **browser extension popup filtering** — Verify that browser extension popups (like Bitwarden) are filtered and not captured in the accessibility tree or as black frames. (`52d20987a`, `449ae7a68`, `931db40b6`)
@@ -446,6 +457,8 @@ commits: `2f6b2af5`, `ea7f1f61`, `5cb100ea`
 - [ ] **Per-device record counts in sync** — In sync settings, verify that record counts are displayed for each synchronized device and that sync configuration persists across restarts. (`0e7baaedb`)
 - [ ] **transcription daily cost cap** — Verify that the daily cost cap for transcription is correctly enforced and prevents further transcription once reached. (`2f67a1041`)
 - [ ] **local Google Calendar OAuth** — Connect Google Calendar. Verify it uses the local OAuth flow instead of a cloud-based one. (`0177fdf2b`)
+- [ ] **Auth guard & session expiry** — Manually expire a session (or wait for expiry). Verify a toast notification appears prompting for re-login. (`b2ea4490e`)
+- [ ] **Native OAuth refresh** — Verify that OAuth tokens (e.g., Google/Notion) are refreshed automatically by SecretStore without relying on legacy local files. (`14262dc72`)
 
 ### 14. Region OCR (Shift+Drag)
 
@@ -744,6 +757,8 @@ commits: `ad431b513`, `d9722bccc`, `4df21e83d`
 - [ ] **Ignore incognito toggle** — Verify that the "Ignore Incognito Windows" toggle in settings correctly prevents recording of private windows. (`d9722bccc`)
 - [ ] **Incognito detection UI feedback** — Verify that the UI correctly reflects when an incognito window is being ignored.
 - [ ] **DRM pause behavior** — Play DRM-protected content (e.g., Netflix in Safari). Verify that Screenpipe pauses recording gracefully and resumes automatically once the DRM content is closed, without crashing the server. (`3d9f0e8bb`)
+- [ ] **Recording schedule** — Configure a recording schedule. Verify recording only happens during scheduled hours. (`2abc87534`)
+- [ ] **Stale pause flag reset** — Manually pause recording, then restart the app. Verify recording resumes if the schedule allows, resetting any stale pause state. (`2abc87534`)
 
 commits: `fc830b43`
 
