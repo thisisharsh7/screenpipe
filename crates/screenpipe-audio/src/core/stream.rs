@@ -105,23 +105,101 @@ impl AudioStream {
 
         #[cfg(not(all(target_os = "linux", feature = "pulseaudio")))]
         let (audio_config, stream_thread) = {
-            let (cpal_audio_device, config) = get_cpal_device_and_config(&device).await?;
-            let audio_config = AudioStreamConfig::from(&config);
-            let channels = config.channels();
-            let is_running_weak = Arc::downgrade(&is_running);
+            // On macOS 14.4+, try CoreAudio Process Tap for System Audio output
+            // capture. This is more reliable than SCK which can fail after
+            // sleep/wake when displays are not enumerated.
+            #[cfg(target_os = "macos")]
+            {
+                use super::device::{DeviceType, MACOS_OUTPUT_AUDIO_DEVICE_NAME};
+                use super::process_tap;
 
-            let thread = Self::spawn_audio_thread(
-                cpal_audio_device,
-                config,
-                tx,
-                stream_control_rx,
-                channels,
-                is_running_weak,
-                is_disconnected.clone(),
-                stream_control_tx.clone(),
-            )
-            .await?;
-            (audio_config, thread)
+                let is_system_audio = device.device_type == DeviceType::Output
+                    && device.name == MACOS_OUTPUT_AUDIO_DEVICE_NAME;
+
+                if is_system_audio && process_tap::is_process_tap_available() {
+                    tracing::info!(
+                        "Using CoreAudio Process Tap for '{}' (macOS 14.4+)",
+                        device.name
+                    );
+                    match process_tap::spawn_process_tap_capture(
+                        tx.clone(),
+                        is_running.clone(),
+                        is_disconnected.clone(),
+                    ) {
+                        Ok((config, thread)) => {
+                            // Process Tap manages its own lifecycle — drop
+                            // the unused stream_control_rx so stop() won't block.
+                            drop(stream_control_rx);
+                            (config, thread)
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                "CoreAudio Process Tap failed, falling back to SCK: {}",
+                                e
+                            );
+                            // Fall through to cpal/SCK path
+                            let (cpal_audio_device, config) =
+                                get_cpal_device_and_config(&device).await?;
+                            let audio_config = AudioStreamConfig::from(&config);
+                            let channels = config.channels();
+                            let is_running_weak = Arc::downgrade(&is_running);
+
+                            let thread = Self::spawn_audio_thread(
+                                cpal_audio_device,
+                                config,
+                                tx,
+                                stream_control_rx,
+                                channels,
+                                is_running_weak,
+                                is_disconnected.clone(),
+                                stream_control_tx.clone(),
+                            )
+                            .await?;
+                            (audio_config, thread)
+                        }
+                    }
+                } else {
+                    let (cpal_audio_device, config) =
+                        get_cpal_device_and_config(&device).await?;
+                    let audio_config = AudioStreamConfig::from(&config);
+                    let channels = config.channels();
+                    let is_running_weak = Arc::downgrade(&is_running);
+
+                    let thread = Self::spawn_audio_thread(
+                        cpal_audio_device,
+                        config,
+                        tx,
+                        stream_control_rx,
+                        channels,
+                        is_running_weak,
+                        is_disconnected.clone(),
+                        stream_control_tx.clone(),
+                    )
+                    .await?;
+                    (audio_config, thread)
+                }
+            }
+
+            #[cfg(not(target_os = "macos"))]
+            {
+                let (cpal_audio_device, config) = get_cpal_device_and_config(&device).await?;
+                let audio_config = AudioStreamConfig::from(&config);
+                let channels = config.channels();
+                let is_running_weak = Arc::downgrade(&is_running);
+
+                let thread = Self::spawn_audio_thread(
+                    cpal_audio_device,
+                    config,
+                    tx,
+                    stream_control_rx,
+                    channels,
+                    is_running_weak,
+                    is_disconnected.clone(),
+                    stream_control_tx.clone(),
+                )
+                .await?;
+                (audio_config, thread)
+            }
         };
 
         Ok(AudioStream {
