@@ -2670,10 +2670,12 @@ impl PipeManager {
                 let dest_dir = self.pipes_dir.join(&name);
                 let dest_canonical = dest_dir.canonicalize().unwrap_or_else(|_| dest_dir.clone());
 
-                // Skip copy if source and destination are the same directory —
-                // copying a directory onto itself can clobber file contents.
+                // Skip copy if source and destination are the same directory
                 if source_canonical != dest_canonical {
-                    copy_dir_recursive(source_path, &dest_dir)?;
+                    if let Err(e) = copy_dir_recursive(source_path, &dest_dir) {
+                        let _ = std::fs::remove_dir_all(&dest_dir);
+                        return Err(e);
+                    }
                 }
                 self.load_pipes().await?;
                 let _ = remove_tombstone(&self.pipes_dir, &name);
@@ -2686,7 +2688,6 @@ impl PipeManager {
         if source.starts_with("http://") || source.starts_with("https://") {
             let name = url_to_pipe_name(source);
             let dest_dir = self.pipes_dir.join(&name);
-            std::fs::create_dir_all(&dest_dir)?;
 
             let response = reqwest::get(source).await?;
             if !response.status().is_success() {
@@ -2696,7 +2697,12 @@ impl PipeManager {
                 ));
             }
             let content = response.text().await?;
-            atomic_write(&dest_dir.join("pipe.md"), &content)?;
+            
+            std::fs::create_dir_all(&dest_dir)?;
+            if let Err(e) = atomic_write(&dest_dir.join("pipe.md"), &content) {
+                let _ = std::fs::remove_dir_all(&dest_dir);
+                return Err(e.into());
+            }
             self.load_pipes().await?;
             let _ = remove_tombstone(&self.pipes_dir, &name);
             info!("installed pipe '{}' from URL", name);
@@ -2729,11 +2735,15 @@ impl PipeManager {
         // Derive name from slug
         let name = slug.to_string();
         let dest_dir = self.pipes_dir.join(&name);
-        std::fs::create_dir_all(&dest_dir)?;
-
+        
         // Re-serialize with tracking fields included
         let content = serialize_pipe(&config, &body)?;
-        atomic_write(&dest_dir.join("pipe.md"), &content)?;
+
+        std::fs::create_dir_all(&dest_dir)?;
+        if let Err(e) = atomic_write(&dest_dir.join("pipe.md"), &content) {
+            let _ = std::fs::remove_dir_all(&dest_dir);
+            return Err(e.into());
+        }
 
         self.load_pipes().await?;
         let _ = remove_tombstone(&self.pipes_dir, &name);
@@ -2791,6 +2801,11 @@ impl PipeManager {
     /// Writes a tombstone so the pipe is not restored by builtin installation
     /// or cloud sync.
     pub async fn delete_pipe(&self, name: &str) -> Result<()> {
+        let name = name.trim();
+        if name.is_empty() || name.contains('/') || name.contains('\\') || name == "." || name == ".." {
+            return Err(anyhow::anyhow!("invalid pipe name"));
+        }
+
         let dir = self.pipes_dir.join(name);
         if !dir.exists() {
             return Err(self.pipe_not_found_error(name));
@@ -2841,6 +2856,10 @@ impl PipeManager {
 
     /// Clear a pipe's chat history by deleting its Pi session files.
     pub async fn clear_pipe_history(&self, name: &str) -> Result<()> {
+        let name = name.trim();
+        if name.is_empty() || name.contains('/') || name.contains('\\') || name == "." || name == ".." {
+            return Err(anyhow::anyhow!("invalid pipe name"));
+        }
         let pipe_dir = self.pipes_dir.join(name);
         if !pipe_dir.exists() {
             return Err(anyhow!("pipe '{}' not found", name));
@@ -4211,12 +4230,23 @@ fn truncate_string(s: &str, max_len: usize) -> String {
 
 fn url_to_pipe_name(url: &str) -> String {
     // Extract last path segment, strip .md extension
-    url.rsplit('/')
+    let name = url.trim_end_matches('/')
+        .rsplit('/')
         .next()
         .unwrap_or("unnamed-pipe")
         .strip_suffix(".md")
-        .unwrap_or(url.rsplit('/').next().unwrap_or("unnamed-pipe"))
-        .to_string()
+        .unwrap_or_else(|| {
+            url.trim_end_matches('/')
+                .rsplit('/')
+                .next()
+                .unwrap_or("unnamed-pipe")
+        });
+    let name = name.trim();
+    if name.is_empty() {
+        "unnamed-pipe".to_string()
+    } else {
+        name.to_string()
+    }
 }
 
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
@@ -4321,6 +4351,23 @@ mod tests {
             std::env::temp_dir().join(format!("screenpipe-test-pipes-{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
         PipeManager::new(dir, HashMap::new(), None, 0)
+    }
+
+    #[tokio::test]
+    async fn test_url_to_pipe_name() {
+        assert_eq!(url_to_pipe_name("https://example.com/"), "example.com");
+        assert_eq!(url_to_pipe_name("https://example.com/pipe.md"), "pipe");
+        assert_eq!(url_to_pipe_name("https://example.com/pipe"), "pipe");
+        assert_eq!(url_to_pipe_name("https://example.com/pipe/"), "pipe");
+    }
+
+    #[tokio::test]
+    async fn test_delete_pipe_validation() {
+        let pm = test_pipe_manager();
+        assert!(pm.delete_pipe("").await.is_err(), "Empty string should fail");
+        assert!(pm.delete_pipe("..").await.is_err(), "Dot-dot should fail");
+        assert!(pm.delete_pipe("/etc/passwd").await.is_err(), "Absolute path should fail");
+        assert!(pm.delete_pipe("valid-pipe-name").await.is_err(), "Valid name should fail with not found error");
     }
 
     #[tokio::test]
@@ -4498,7 +4545,7 @@ mod tests {
         let content = "---\nschedule: manual\n---\n\nBody";
         let (config, _) = parse_frontmatter(content).unwrap();
         assert_eq!(config.agent, "pi");
-        assert_eq!(config.model, "claude-haiku-4-5");
+        assert_eq!(config.model, "auto");
         assert!(config.enabled);
         assert!(config.provider.is_none());
     }
