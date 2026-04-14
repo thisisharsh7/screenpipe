@@ -639,30 +639,47 @@ async fn execute_single_write(
 
             // If transcription is empty, just ensure chunk exists
             if transcription.trim().is_empty() {
-                if *existing_chunk_id != 0 {
-                    return Ok(WriteResult::Id(*existing_chunk_id));
+                let mut chunk_id = *existing_chunk_id;
+                if chunk_id != 0 {
+                    let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM audio_chunks WHERE id = ?1)")
+                        .bind(chunk_id)
+                        .fetch_one(&mut **conn)
+                        .await?;
+                    if !exists {
+                        chunk_id = 0;
+                    }
                 }
-                let id =
-                    sqlx::query("INSERT INTO audio_chunks (file_path, timestamp) VALUES (?1, ?2)")
+                if chunk_id == 0 {
+                    chunk_id = sqlx::query("INSERT INTO audio_chunks (file_path, timestamp) VALUES (?1, ?2)")
                         .bind(file_path.as_str())
                         .bind(ts)
                         .execute(&mut **conn)
                         .await?
                         .last_insert_rowid();
-                return Ok(WriteResult::Id(id));
+                }
+                return Ok(WriteResult::Id(chunk_id));
             }
 
             // Insert chunk if needed
-            let audio_chunk_id = if *existing_chunk_id != 0 {
-                *existing_chunk_id
-            } else {
-                sqlx::query("INSERT INTO audio_chunks (file_path, timestamp) VALUES (?1, ?2)")
+            let mut audio_chunk_id = *existing_chunk_id;
+            if audio_chunk_id != 0 {
+                let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM audio_chunks WHERE id = ?1)")
+                    .bind(audio_chunk_id)
+                    .fetch_one(&mut **conn)
+                    .await?;
+                if !exists {
+                    audio_chunk_id = 0;
+                }
+            }
+
+            if audio_chunk_id == 0 {
+                audio_chunk_id = sqlx::query("INSERT INTO audio_chunks (file_path, timestamp) VALUES (?1, ?2)")
                     .bind(file_path.as_str())
                     .bind(ts)
                     .execute(&mut **conn)
                     .await?
-                    .last_insert_rowid()
-            };
+                    .last_insert_rowid();
+            }
 
             // Insert transcription
             let text_length = transcription.len() as i64;
