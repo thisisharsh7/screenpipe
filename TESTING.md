@@ -136,6 +136,7 @@ commits: `28e5c247`
 - [ ] **dead System Audio auto-reconnect** — Simulate a dead system audio stream. Verify it auto-reconnects and resumes capture. (`0f287761d`)
 - [ ] **per-device audio toggle** — In the tray menu, verify you can toggle recording for individual audio devices. (`3ee3defcb`)
 - [ ] **stable audio device order** — Verify that audio devices listed in the tray menu maintain a stable order across refreshes. (`4577ac8a6`)
+- [ ] **Meeting end detection** — Verify that meetings correctly end by checking for SQLite timestamp format mismatches. (`0087d86c8`)
 
 
 #### Audio device recovery (monitor unplug / device switch)
@@ -273,7 +274,7 @@ commits: `94531265`, `d794176a`, `9070639c`, `0378cab1`, `4a3313d3`, `7ffdd4f1`,
 
 ### 9. database & storage
 
-commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`
+commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`, `bb5174940`
 
 - [ ] **slow DB insert warning** — check logs. "Slow DB batch insert" warnings should be <1s in normal operation. >3s indicates contention.
 - [ ] **concurrent DB access** — UI queries + recording inserts happening simultaneously. no "database is locked" errors.
@@ -296,19 +297,12 @@ commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`
 - [ ] **Data directory setting location** — Verify that the data directory setting is now located in the "Storage" tab of the settings menu. (`0d3ffe30a`)
 - [ ] **store.bin encryption** — Enable "Encrypt store.bin" in settings (Privacy > Security). Verify that `store.bin` is encrypted and correctly decrypted on startup using the OS keychain. (`143875207`, `aee1cd2b5`, `85ecd7935`)
 - [ ] **graceful keychain denial** — On macOS, deny keychain access for store encryption. Verify the app handles it gracefully and falls back to unencrypted store if necessary or warns the user. (`b9c01b916`)
-
-- [ ] **slow DB insert warning** — check logs. "Slow DB batch insert" warnings should be <1s in normal operation. >3s indicates contention.
-- [ ] **concurrent DB access** — UI queries + recording inserts happening simultaneously. no "database is locked" errors.
-- [ ] **store race condition** — rapidly toggle settings while recording is active. no crash (`eea0c865`).
-- [ ] **event listener race condition** — Tauri event listener setup during rapid window creation. no crash (`cc09de61`).
-- [ ] **UTF-8 boundary panic** — search with special characters, non-ASCII text in OCR results. no panic on string slicing (`eea0c865`).
-- [ ] **low disk space** — with <1GB free, app should warn user. no crash from failed writes.
-- [ ] **large database (>10GB)** — search still returns results within 2 seconds. app doesn't freeze on startup.
-- [ ] **Audio chunk timestamps** — `start_time` and `end_time` are correctly set for reconciled and retranscribed audio chunks in the database.
+- [ ] **Database backup/checkpoint API** — Verify that database backup and checkpointing can be triggered via both API and CLI. (`bb5174940`)
+- [ ] **Recording data directory fix** — Verify that recording configuration correctly uses `recording_config.data_dir` if the data directory has been moved. (`4f78eb0b9`)
 
 ### 10. AI presets & settings
 
-commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`
+commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`, `e4673b533`, `638e11a47`
 
 - [ ] **Ollama not running** — creating an Ollama preset shows free-text input fields (not stuck loading). user can type model name manually (`8a5f51dd`).
 - [ ] **custom provider preset** — user can add a custom API endpoint. model name is free-text input with optional autocomplete.
@@ -330,17 +324,8 @@ commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`
 - [ ] **privacy settings reordering** — Verify that the Security section appears first in the Privacy settings tab. (`4718785b6`)
 - [ ] **password field filtering** — Verify that password fields are skipped in the accessibility tree and not stored as OCR/text. (`8159641f5`, `d39e42e5b`)
 - [ ] **browser extension popup filtering** — Verify that browser extension popups (like Bitwarden) are filtered and not captured in the accessibility tree or as black frames. (`52d20987a`, `449ae7a68`, `931db40b6`)
-
-commits: `8a5f51dd`, `0b0d8090`
-
-- [ ] **Ollama not running** — creating an Ollama preset shows free-text input fields (not stuck loading). user can type model name manually (`8a5f51dd`).
-- [ ] **custom provider preset** — user can add a custom API endpoint. model name is free-text input with optional autocomplete.
-- [ ] **settings survive restart** — change any setting, quit, relaunch. setting is preserved.
-- [ ] **overlay mode switch** — change from fullscreen to window mode. setting saves. next shortcut press uses new mode.
-- [ ] **FPS setting** — change capture FPS. recording interval changes accordingly.
-- [ ] **language/OCR engine setting** — change OCR language. new language used on next capture cycle.
-- [ ] **video quality setting** — low/balanced/high/max. affects FFmpeg encoding params (`21bddd0f`).
-- [ ] **Settings UI sentence case** — All settings UI elements (billing, pipes, team) should use consistent sentence case.
+- [ ] **New AI models** — Verify GLM-5.1 and MiniMax M2.7 are available in the AI gateway. (`e4673b533`)
+- [ ] **Screenpipe Cloud branding** — Verify "pi" has been renamed to "screenpipe cloud" in the preset picker. (`638e11a47`)
 
 ### 11. onboarding
 
@@ -366,7 +351,7 @@ commits: `87abb00d`, `9464fdc9`, `0f9e43aa`, `7ea15f32`
 
 ### 12. timeline & search
 
-commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`, `e61501da`, `039d5fea`, `50ff4f4c`, `91cc4371`, `bcce42796`, `a98fa2991`, `0ff93b167`, `adbbb8f84`
+commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`, `e61501da`, `039d5fea`, `50ff4f4c`, `91cc4371`, `bcce42796`, `a98fa2991`, `0ff93b167`, `adbbb8f84`, `f02546456`
 
 - [ ] **arrow key navigation** — left/right arrow keys navigate timeline frames (`f1255eac`).
 - [ ] **search results sorted by time** — search results appear in chronological order (`25cbdc6b`).
@@ -415,20 +400,7 @@ commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`, `e61501da`, `039d5fea`,
 - [ ] **Chat image viewer** — verify images can be viewed in chat. (`2bcdf8d8b`)
 - [ ] **Chat preset dropdown** — verify AI preset switching within chat. (`2bcdf8d8b`)
 - [ ] **Memories Settings UI** — verify frame_id relationship and Memories settings work as expected. (`67f4c4304`)
-
-commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`
-
-- [ ] **arrow key navigation** — left/right arrow keys navigate timeline frames (`f1255eac`).
-- [ ] **search results sorted by time** — search results appear in chronological order (`25cbdc6b`).
-- [ ] **no frame clearing during navigation** — navigating timeline doesn't cause frames to disappear and reload (`2529367d`).
-- [ ] **URL detection in frames** — URLs visible in screenshots are extracted and shown as clickable pills (`50ef52d1`, `aa992146`).
-- [ ] **app context popover** — clicking app icon in timeline shows context (time, windows, urls, audio) (`be3ecffb`).
-- [ ] **daily summary in timeline** — Apple Intelligence summary shows in timeline, compact when no summary (`d9821624`).
-- [ ] **window-focused refresh** — opening app via shortcut/tray refreshes timeline data immediately (`0b057046`).
-- [ ] **frame deep link navigation** — `screenpipe://frame/N` or `screenpipe://frames/N` opens main window and jumps to frame N. works from cold start; invalid IDs show clear error.
-- [ ] **Keyword search accessibility** — Keyword search should find content within accessibility-only frames and utilize `frames_fts` for comprehensive accessibility text searching.
-- [ ] **Keyword search logic** — Verify that keyword search SQL correctly uses `OR` instead of `UNION` within `IN()`.
-- [ ] **Search prompt accuracy** — Verify that search prompts are improved to prevent false negatives from over-filtering.
+- [ ] **OCR + UI search deduplication** — Verify that search results from OCR and UI are deduplicated, eliminating "unavailable" frames. (`f02546456`)
 
 ### 13. sync & cloud
 
@@ -617,7 +589,7 @@ commits: `8f334c0a`, `fda40d2c`
 
 ### 16. MCP / Claude integration
 
-commits: `8c8c445c`
+commits: `8c8c445c`, `241b6c8b3`, `a0d7434f6`, `7e21c4c6b`, `792caded4`
 
 - [ ] **Claude connect button works** — Settings → Connections → "Connect Claude" downloads `.mcpb` file and opens it in Claude Desktop. was broken because GitHub releases API pagination didn't reach `mcp-v*` releases buried behind 30+ app releases (`8c8c445c`).
 - [ ] **MCP release discovery with many app releases** — `getLatestMcpRelease()` paginates up to 5 pages (250 releases) to find `mcp-v*` tagged releases. verify it works even when >30 app releases exist since last MCP release.
@@ -626,10 +598,14 @@ commits: `8c8c445c`
 - [ ] **macOS Claude install flow** — downloads `.mcpb`, opens Claude Desktop, waits 1.5s, then opens the `.mcpb` file to trigger Claude's install modal.
 - [ ] **Windows Claude install flow** — same flow using `cmd /c start` instead of `open -a`.
 - [ ] **download error logging** — if download fails, console shows actual error message (not `{}`).
+- [ ] **MCP API key auto-discovery** — Verify MCP server auto-discovers API key from `store.bin` or `auth.json`. (`241b6c8b3`)
+- [ ] **MCP API key via CLI** — Verify MCP server can discover API key using `screenpipe auth token` CLI command. (`a0d7434f6`)
+- [ ] **MCP API key via npx** — Verify MCP server discovers API key via `npx` with fallback to bundled `bun`. (`7e21c4c6b`)
+- [ ] **MCP API authentication** — Verify that the MCP server correctly handles API authentication. (`792caded4`)
 
 ### 17. AI Agents / Pipes
 
-commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`, `5908d7f4`, `46422869`, `4f43da70`, `71a1a537`, `6abaaa36`, `f3e55dbc`, `8e426dec`, `1289f51e`, `4bc9ff1a`, `c336f73d`, `2f7416ae`
+commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`, `5908d7f4`, `46422869`, `4f43da70`, `71a1a537`, `6abaaa36`, `f3e55dbc`, `8e426dec`, `1289f51e`, `4bc9ff1a`, `c336f73d`, `2f7416ae`, `898e29a38`, `1a6966856`, `34b53dd6b`, `0a41da4b6`
 
 - [ ] **Pi process stability** — After app launch, `ps aux | grep pi` should show a single, stable `pi` process that doesn't restart or get killed.
 - [ ] **Pi readiness handshake** — First chat interaction with Pi should be fast (<2s for readiness).
@@ -681,26 +657,10 @@ commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`,
 - [ ] **Rich activity-summary** — Verify that activity summaries include details about windows, URLs, and audio transcriptions. (`f2d8ba1dad3`)
 - [ ] **OpenAI-compatible transcription endpoint** — Verify that the `/v1/audio/transcriptions` endpoint works correctly with standard OpenAI clients. (`59deeba19`)
 - [ ] **Mermaid diagram XSS sanitization** — Verify that mermaid diagrams in the UI are correctly sanitized to prevent XSS attacks. (`3405e9793`)
-
-commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`, `5908d7f4`, `46422869`, `4f43da70`, `71a1a537`, `6abaaa36`
-
-- [ ] **Pi process stability** — After app launch, `ps aux | grep pi` should show a single, stable `pi` process that doesn't restart or get killed.
-- [ ] **Pi readiness handshake** — First chat interaction with Pi should be fast (<2s for readiness).
-- [ ] **Pi auto-recovery** — If the `pi` process is manually killed, it should restart automatically within a few seconds and be ready for chat.
-- [ ] **Pipe output accuracy** — When executing a pipe, the user's prompt should be accurately reflected in the output.
-- [ ] **Silent LLM errors** — LLM errors during pipe execution should be displayed to the user, not silently suppressed.
-- [ ] **Fast first chat with Pi** — The first interaction with Pi after app launch should be responsive, with no noticeable delay (aim for <2s).
-- [ ] **Activity Summary tool** — MCP can access activity summaries via the `activity-summary` tool, and the `activity-summary` endpoint works correctly.
-- [ ] **Search Elements tool** — MCP can search elements using the `search-elements` tool.
-- [ ] **Frame Context tool** — MCP can access frame context via the `frame-context` tool.
-- [ ] **Progressive disclosure for AI data** — AI data querying should progressively disclose information.
-- [ ] **Screenpipe Analytics skill** — The `screenpipe-analytics` skill can be used by the Pi agent to perform raw SQL usage analytics.
-- [ ] **Screenpipe Retranscribe skill** — The `screenpipe-retranscribe` skill can be used by the Pi agent for retranscription.
-- [ ] **AI preset save stability** — Saving AI presets should not cause crashes, especially when dealing with pipe session conflicts.
-- [ ] **Pipe token handling** — Ensure that Pi configuration for pipes uses the actual token value, not the environment variable name.
-- [ ] **Pipe user_token passthrough** — Verify that the `user_token` is correctly passed to Pi pre-configuration so pipes use the screenpipe provider.
-- [ ] **Default AI model ID** — Verify that the default AI model ID does not contain outdated date suffixes.
-- [ ] **Move provider/model flags** — `--provider` and `--model` flags should be correctly moved before `-p prompt` in `pi spawn` commands.
+- [ ] **Pipe sub-agents** — Verify that pipes can now utilize sub-agents for more complex tasks. (`898e29a38`)
+- [ ] **Enterprise pipe heartbeat** — For enterprise users, verify that pipes send heartbeat reports and support client-side sync. (`1a6966856`)
+- [ ] **Pi agent system prompt auth** — Verify the Pi agent system prompt includes the auth header for local API calls. (`34b53dd6b`)
+- [ ] **Pi agent subprocess auth** — Verify the local API auth key is correctly passed to the Pi agent subprocess. (`0a41da4b6`)
 
 ### 18. Admin / Team features
 
@@ -709,10 +669,6 @@ commits: `58460e02`, `853e0975`
 - [ ] **Admin team-shared filters** — Admins should be able to remove individual team-shared filters.
 - [ ] **Simplified team invite** — Verify the simplified team invite flow using a single web URL without requiring a passphrase. (`44a19b73f`, `b53b08b6e`)
 - [ ] **Per-request AI cost tracking and admin spend endpoint** — Verify that per-request AI costs are tracked correctly and that the admin spend endpoint provides accurate usage data.
-
-commits: `58460e02`
-
-- [ ] **Admin team-shared filters** — Admins should be able to remove individual team-shared filters.
 
 ### 19. Logging
 
@@ -738,12 +694,17 @@ commits: `274a968af`, `dc575e48e`, `81aabbf18`, `d5e071854`, `db08f8c06`, `f4225
 
 ### 21. Privacy & Incognito Detection
 
-commits: `ad431b513`, `d9722bccc`, `4df21e83d`
+commits: `ad431b513`, `d9722bccc`, `4df21e83d`, `90076250c`, `fe669f5b6`, `87173f79b`, `c2d248183`, `e9bbe0499`
 
 - [ ] **Incognito window detection** — Verify that private browsing/incognito windows are correctly detected for major browsers (Chrome, Safari, Firefox, etc.). (`ad431b513`)
 - [ ] **Ignore incognito toggle** — Verify that the "Ignore Incognito Windows" toggle in settings correctly prevents recording of private windows. (`d9722bccc`)
 - [ ] **Incognito detection UI feedback** — Verify that the UI correctly reflects when an incognito window is being ignored.
 - [ ] **DRM pause behavior** — Play DRM-protected content (e.g., Netflix in Safari). Verify that Screenpipe pauses recording gracefully and resumes automatically once the DRM content is closed, without crashing the server. (`3d9f0e8bb`)
+- [ ] **Privacy settings restructuring** — Verify privacy settings are organized into logical groups (Incognito, Ignore Rules, Security). (`90076250c`)
+- [ ] **Local API authentication** — Verify local API requires authentication (via cookie or `sp-` token) and doesn't bypass localhost. (`fe669f5b6`)
+- [ ] **Shortened API key** — Verify auto-generated API keys are shortened to `sp-{8 chars}`. (`87173f79b`)
+- [ ] **API key persistence** — Verify API keys are persisted to `SecretStore` (db.sqlite) rather than `store.bin`. (`c2d248183`)
+- [ ] **API auth whitelisting** — Verify `/frames/` and `/notify` endpoints are whitelisted from API authentication. (`e9bbe0499`)
 
 commits: `fc830b43`
 
