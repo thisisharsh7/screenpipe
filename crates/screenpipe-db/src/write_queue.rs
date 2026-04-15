@@ -27,7 +27,7 @@ use tracing::{debug, error, warn};
 
 /// Maximum writes per batch. Caps transaction size to avoid holding
 /// the write lock too long and starving readers.
-const MAX_BATCH_SIZE: usize = 500;
+const MAX_BATCH_SIZE: usize = 100;
 
 /// How often the drain loop wakes up to flush buffered writes.
 const DRAIN_INTERVAL: Duration = Duration::from_millis(100);
@@ -424,7 +424,7 @@ async fn execute_batch(
     };
 
     // Acquire connection and BEGIN IMMEDIATE with retry logic
-    let max_retries = 3;
+    let max_retries = 5;
     let mut last_error = None;
     let mut conn_opt = None;
 
@@ -463,15 +463,20 @@ async fn execute_batch(
                 tokio::time::sleep(Duration::from_millis(50)).await;
                 continue;
             }
-            Err(e) if attempt < max_retries && is_busy_error(&e) => {
-                warn!(
-                    "write_queue: BEGIN IMMEDIATE busy (attempt {}/{}), retrying...",
-                    attempt, max_retries
-                );
-                drop(conn);
-                last_error = Some(e);
-                tokio::time::sleep(Duration::from_millis(50 * attempt as u64)).await;
-                continue;
+            Err(e) if is_busy_error(&e) => {
+                if attempt < max_retries {
+                    warn!(
+                        "write_queue: BEGIN IMMEDIATE busy (attempt {}/{}), retrying...",
+                        attempt, max_retries
+                    );
+                    drop(conn);
+                    last_error = Some(e);
+                    tokio::time::sleep(Duration::from_millis(100 * attempt as u64)).await;
+                    continue;
+                } else {
+                    last_error = Some(e);
+                    break;
+                }
             }
             Err(e) => {
                 warn!("write_queue: BEGIN IMMEDIATE failed: {}", e);
