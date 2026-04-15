@@ -20,7 +20,8 @@ fn encode_single_audio(
 ) -> anyhow::Result<()> {
     debug!("Starting FFmpeg process");
 
-    let mut command = screenpipe_core::ffmpeg_cmd(find_ffmpeg_path().unwrap());
+    let ffmpeg_path = find_ffmpeg_path().ok_or_else(|| anyhow::anyhow!("FFmpeg not found"))?;
+    let mut command = screenpipe_core::ffmpeg_cmd(ffmpeg_path);
     command
         .args([
             "-f",
@@ -57,16 +58,18 @@ fn encode_single_audio(
     debug!("FFmpeg command: {:?}", command);
 
     #[allow(clippy::zombie_processes)]
-    let mut ffmpeg = command.spawn().expect("Failed to spawn FFmpeg process");
+    let mut ffmpeg = command
+        .spawn()
+        .map_err(|e| anyhow::anyhow!("Failed to spawn FFmpeg process: {}", e))?;
     debug!("FFmpeg process spawned");
-    let mut stdin = ffmpeg.stdin.take().expect("Failed to open stdin");
+    let mut stdin = ffmpeg.stdin.take().ok_or_else(|| anyhow::anyhow!("Failed to open stdin"))?;
 
     stdin.write_all(data)?;
 
     debug!("Dropping stdin");
     drop(stdin);
     debug!("Waiting for FFmpeg process to exit");
-    let output = ffmpeg.wait_with_output().unwrap();
+    let output = ffmpeg.wait_with_output()?;
     let status = output.status;
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -107,7 +110,8 @@ pub fn get_new_file_path_with_timestamp(
 pub fn read_audio_from_file(path: &Path) -> Result<(Vec<f32>, u32)> {
     let sample_rate: u32 = 16000;
 
-    let mut command = screenpipe_core::ffmpeg_cmd(find_ffmpeg_path().unwrap());
+    let ffmpeg_path = find_ffmpeg_path().ok_or_else(|| anyhow::anyhow!("FFmpeg not found"))?;
+    let mut command = screenpipe_core::ffmpeg_cmd(ffmpeg_path);
     command
         .args([
             "-i",
