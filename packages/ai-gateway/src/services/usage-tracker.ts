@@ -87,7 +87,7 @@ async function tryDeductCredit(env: Env, userId: string, reason: string): Promis
 /**
  * Get user's current credit balance without deducting.
  */
-async function getCreditBalance(env: Env, userId: string): Promise<number> {
+export async function getCreditBalance(env: Env, userId: string): Promise<number> {
   const clerkId = await resolveClerkId(env, userId);
   if (!clerkId) return 0;
 

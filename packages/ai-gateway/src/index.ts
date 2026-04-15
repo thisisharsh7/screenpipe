@@ -12,7 +12,7 @@ import { handleVertexProxy, handleVertexModels } from './handlers/vertex-proxy';
 import { handleWebSearch } from './handlers/web-search';
 import { logCost, getModelCost, inferProvider, getSpendSummary, getDailyUserCost, getMaxDailyCostPerUser, getTierDailyCostCap, isZeroCostModel } from './services/cost-tracker';
 import { trackResponseUsage } from './utils/stream-usage-tracker';
-import { getModelWeight } from './services/usage-tracker';
+import { getModelWeight, getCreditBalance } from './services/usage-tracker';
 import { pruneModelHealth } from './services/model-health';
 // import { handleTTSWebSocketUpgrade } from './handlers/voice-ws';
 
@@ -104,11 +104,15 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
 				const dailyCost = await getDailyUserCost(env, authResult.deviceId);
 				const maxCost = getTierDailyCostCap(authResult.tier, env);
 				if (dailyCost >= maxCost) {
-					return addCorsHeaders(createErrorResponse(429, JSON.stringify({
-						error: 'daily_cost_limit_exceeded',
-						message: `You've reached your daily AI usage limit. Try a free model or wait until tomorrow.`,
-						free_models: ['gemini-3-flash'],
-					})));
+					// Bypass cost limit if user has credits available
+					const hasCredits = authResult.userId ? await getCreditBalance(env, authResult.userId).then(b => b > 0).catch(() => false) : false;
+					if (!hasCredits) {
+						return addCorsHeaders(createErrorResponse(429, JSON.stringify({
+							error: 'daily_cost_limit_exceeded',
+							message: `You've reached your daily AI usage limit. Try a free model or wait until tomorrow.`,
+							free_models: ['gemini-3-flash'],
+						})));
+					}
 				}
 			}
 
@@ -339,11 +343,15 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
 				const dailyCost = await getDailyUserCost(env, authResult.deviceId);
 				const maxCost = getTierDailyCostCap(authResult.tier, env);
 				if (dailyCost >= maxCost) {
-					return addCorsHeaders(createErrorResponse(429, JSON.stringify({
-						error: 'daily_cost_limit_exceeded',
-						message: `You've reached your daily AI usage limit. Try a free model or wait until tomorrow.`,
-						free_models: ['gemini-3-flash'],
-					})));
+					// Bypass cost limit if user has credits available
+					const hasCredits = authResult.userId ? await getCreditBalance(env, authResult.userId).then(b => b > 0).catch(() => false) : false;
+					if (!hasCredits) {
+						return addCorsHeaders(createErrorResponse(429, JSON.stringify({
+							error: 'daily_cost_limit_exceeded',
+							message: `You've reached your daily AI usage limit. Try a free model or wait until tomorrow.`,
+							free_models: ['gemini-3-flash'],
+						})));
+					}
 				}
 			}
 
@@ -438,11 +446,15 @@ async function handleRequest(request: Request, env: Env, ctx: ExecutionContext):
 				const dailyCost = await getDailyUserCost(env, authResult.deviceId);
 				const maxCost = getTierDailyCostCap(authResult.tier, env);
 				if (dailyCost >= maxCost) {
-					return addCorsHeaders(createErrorResponse(429, JSON.stringify({
-						error: 'daily_cost_limit_exceeded',
-						message: `You've reached your daily AI usage limit. Try a free model or wait until tomorrow.`,
-						free_models: ['gemini-3-flash'],
-					})));
+					// Bypass cost limit if user has credits available
+					const hasCredits = authResult.userId ? await getCreditBalance(env, authResult.userId).then(b => b > 0).catch(() => false) : false;
+					if (!hasCredits) {
+						return addCorsHeaders(createErrorResponse(429, JSON.stringify({
+							error: 'daily_cost_limit_exceeded',
+							message: `You've reached your daily AI usage limit. Try a free model or wait until tomorrow.`,
+							free_models: ['gemini-3-flash'],
+						})));
+					}
 				}
 			}
 
