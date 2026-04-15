@@ -44,26 +44,21 @@ fn create_speech_segment(
     let start_f64 = start * (sample_rate as f64);
     let end_f64 = end * (sample_rate as f64);
 
-    let start_idx = start_f64.min((samples.len() - 1600) as f64) as usize;
+    let start_idx = start_f64.min(samples.len().saturating_sub(1600) as f64) as usize;
     let mut end_idx = end_f64.min(samples.len() as f64) as usize;
 
-    // TODO: Why is this empty sometimes?
-    let mut samples = padded_samples[start_idx..end_idx].to_vec();
-    // // Ensure the segment has at least 1600 samples
     let min_length = 1600;
+    let mut padded_buf;
+
     let segment_samples = if end_idx - start_idx < min_length {
-        if end_idx + (min_length - (end_idx - start_idx)) <= samples.len() {
-            // Increase the end index if possible
-            end_idx += min_length - (end_idx - start_idx);
+        let needed = min_length - (end_idx - start_idx);
+        if end_idx + needed <= padded_samples.len() {
+            end_idx += needed;
             &padded_samples[start_idx..end_idx]
-        } else if start_idx >= min_length - (end_idx - start_idx) {
-            // Otherwise, pad the samples.
-
-            samples.resize(1600, 0.0);
-
-            samples.as_slice()
         } else {
-            &padded_samples[start_idx..end_idx]
+            padded_buf = padded_samples[start_idx..end_idx].to_vec();
+            padded_buf.resize(min_length, 0.0);
+            &padded_buf
         }
     } else {
         &padded_samples[start_idx..end_idx]
