@@ -1,0 +1,14 @@
+fix(db): resolve database is locked errors by protecting direct DB writes
+
+Fixes database connection pool exhaustion and "database is locked" errors.
+
+## Problem
+App and CLI frequently experienced "pool timed out while waiting for an open connection" or "database is locked" errors, causing audio handlers to restart and events to be dropped.
+
+## Root cause
+1. Multiple database methods bypassed the `write_semaphore` by using `.execute(&self.pool)` directly on the read pool. Because SQLite uses a single write lock, these direct writes fought with `write_queue` and other transaction mechanisms, causing `SQLITE_BUSY` (database is locked) inside `write_queue.rs`.
+2. When `write_queue` failed its retries due to this lock contention, `send_error_to_all` broadcasted `sqlx::Error::PoolTimedOut` regardless of the actual error, masking the "database is locked" failure as a pool timeout.
+
+## Fix
+- Refactored all direct `.execute(&self.pool)` writes in `db.rs` to use `begin_immediate_with_retry()` so they queue correctly via the `write_semaphore`.
+- Updated `send_error_to_all` in `write_queue.rs` to correctly propagate the actual error message inside a new `sqlx::Error::Io` wrapper, allowing accurate logs and handling upstream.

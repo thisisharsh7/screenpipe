@@ -172,7 +172,7 @@ pub async fn set_sync_enabled(state: State<'_, SyncState>, enabled: bool) -> Res
 /// Trigger an immediate sync via the screenpipe server.
 #[tauri::command]
 #[specta::specta]
-pub async fn trigger_sync(state: State<'_, SyncState>) -> Result<(), String> {
+pub async fn trigger_sync(app: AppHandle, state: State<'_, SyncState>) -> Result<(), String> {
     let enabled = *state.enabled.read().await;
     if !enabled {
         return Err("sync is not enabled".to_string());
@@ -195,11 +195,13 @@ pub async fn trigger_sync(state: State<'_, SyncState>) -> Result<(), String> {
     let is_syncing_clone = state.is_syncing.clone();
     let last_sync_clone = state.last_sync.clone();
     let last_error_clone = state.last_error.clone();
+    let app = app.clone();
 
     tokio::spawn(async move {
         let client = reqwest::Client::new();
+        let port = crate::store::SettingsStore::get(&app).ok().flatten().map(|s| s.recording.port).unwrap_or(3030);
         let result = client
-            .post("http://localhost:3030/sync/trigger")
+            .post(&format!("http://localhost:{}/sync/trigger", port))
             .send()
             .await;
 
@@ -307,6 +309,7 @@ pub async fn remove_sync_device(
 #[tauri::command]
 #[specta::specta]
 pub async fn delete_device_local_data(
+    app: AppHandle,
     state: State<'_, SyncState>,
     machine_id: String,
 ) -> Result<String, String> {
@@ -315,8 +318,9 @@ pub async fn delete_device_local_data(
     }
 
     let client = reqwest::Client::new();
+    let port = crate::store::SettingsStore::get(&app).ok().flatten().map(|s| s.recording.port).unwrap_or(3030);
     let resp = client
-        .post("http://localhost:3030/data/delete-device")
+        .post(&format!("http://localhost:{}/data/delete-device", port))
         .json(&serde_json::json!({ "machine_id": machine_id }))
         .send()
         .await
@@ -406,8 +410,9 @@ pub async fn init_sync(
         "sync_interval_secs": 300
     });
 
+    let port = crate::store::SettingsStore::get(&app).ok().flatten().map(|s| s.recording.port).unwrap_or(3030);
     match client
-        .post("http://localhost:3030/sync/init")
+        .post(&format!("http://localhost:{}/sync/init", port))
         .json(&init_request)
         .send()
         .await
@@ -458,7 +463,8 @@ pub async fn lock_sync(app: AppHandle, state: State<'_, SyncState>) -> Result<()
 
     // Lock server sync service
     let client = reqwest::Client::new();
-    match client.post("http://localhost:3030/sync/lock").send().await {
+    let port = crate::store::SettingsStore::get(&app).ok().flatten().map(|s| s.recording.port).unwrap_or(3030);
+    match client.post(&format!("http://localhost:{}/sync/lock", port)).send().await {
         Ok(response) if response.status().is_success() => {
             info!("server sync service locked");
         }
@@ -557,8 +563,9 @@ pub async fn auto_start_sync(app: &AppHandle, state: &SyncState) {
         "sync_interval_secs": 300
     });
 
+    let port = crate::store::SettingsStore::get(&app).ok().flatten().map(|s| s.recording.port).unwrap_or(3030);
     match client
-        .post("http://localhost:3030/sync/init")
+        .post(&format!("http://localhost:{}/sync/init", port))
         .json(&init_request)
         .send()
         .await
@@ -653,8 +660,9 @@ pub async fn auto_start_archive(app: &AppHandle) {
             tokio::time::sleep(tokio::time::Duration::from_secs(*delay)).await;
         }
 
+        let port = crate::store::SettingsStore::get(app).ok().flatten().map(|s| s.recording.port).unwrap_or(3030);
         match client
-            .post("http://localhost:3030/archive/init")
+            .post(&format!("http://localhost:{}/archive/init", port))
             .json(&init_request)
             .send()
             .await
@@ -670,8 +678,9 @@ pub async fn auto_start_archive(app: &AppHandle) {
                 info!("cloud archive: already initialized, re-enabling");
                 // Already initialized — make sure it's enabled
                 let enable_req = serde_json::json!({ "enabled": true });
+                let port = crate::store::SettingsStore::get(app).ok().flatten().map(|s| s.recording.port).unwrap_or(3030);
                 if let Err(e) = client
-                    .post("http://localhost:3030/archive/configure")
+                    .post(&format!("http://localhost:{}/archive/configure", port))
                     .json(&enable_req)
                     .send()
                     .await
@@ -740,8 +749,9 @@ pub async fn auto_start_retention(app: &AppHandle) {
         "retention_days": days,
     });
 
+    let port = crate::store::SettingsStore::get(app).ok().flatten().map(|s| s.recording.port).unwrap_or(3030);
     match client
-        .post("http://localhost:3030/retention/configure")
+        .post(&format!("http://localhost:{}/retention/configure", port))
         .json(&configure_req)
         .send()
         .await
