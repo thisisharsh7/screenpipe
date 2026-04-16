@@ -1338,8 +1338,10 @@ async fn execute_single_write(
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 fn send_error_to_all(batch: &mut Vec<PendingWrite>, error: sqlx::Error) {
+    let msg = error.to_string();
     for pw in batch.drain(..) {
-        let _ = pw.respond.send(Err(sqlx::Error::PoolTimedOut));
+        let e = sqlx::Error::Io(std::io::Error::new(std::io::ErrorKind::Other, msg.clone()));
+        let _ = pw.respond.send(Err(e));
     }
     // Log the original error that caused the batch failure
     error!("write_queue: batch failed: {}", error);
