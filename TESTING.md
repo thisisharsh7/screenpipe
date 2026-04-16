@@ -136,6 +136,8 @@ commits: `28e5c247`
 - [ ] **dead System Audio auto-reconnect** — Simulate a dead system audio stream. Verify it auto-reconnects and resumes capture. (`0f287761d`)
 - [ ] **per-device audio toggle** — In the tray menu, verify you can toggle recording for individual audio devices. (`3ee3defcb`)
 - [ ] **stable audio device order** — Verify that audio devices listed in the tray menu maintain a stable order across refreshes. (`4577ac8a6`)
+- [ ] **Force-restart audio after sleep/wake** — Sleep and wake the machine or change display configuration. Verify audio devices are force-restarted and capture resumes. (`48d31ffaa`)
+- [ ] **Exponential backoff on audio retry** — Simulate audio device disconnect. Verify retry logic uses exponential backoff. (`c2b0f29a4`)
 
 
 #### Audio device recovery (monitor unplug / device switch)
@@ -226,6 +228,8 @@ commits: `d9d43d31`, `620c89a5`, `14acf6f0`
 - [ ] **startup permission gate** — on first launch, permissions are requested before recording starts (`d9d43d31`).
 - [ ] **faster permission polling** — permission status checked every 5-10 seconds, not 30 (`d9d43d31`).
 - [ ] **improved permission recovery UX** — Verify that the user experience for recovering from denied permissions is clear and intuitive. (`57cca740`)
+- [ ] **Error tray icon for degraded status** — Revoke a permission or simulate a capture failure. Verify the tray icon shows an error state (except for DRM pause). (`964e472d8`)
+- [ ] **Harden permission-loss detection** — Verify that permission loss is detected via the health endpoint, providing more reliable status updates than just preflight checks. (`7bc0c6f38`, `8ede40425`)
 
 ### 7. Apple Intelligence (macOS 26+)
 
@@ -296,6 +300,11 @@ commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`
 - [ ] **Data directory setting location** — Verify that the data directory setting is now located in the "Storage" tab of the settings menu. (`0d3ffe30a`)
 - [ ] **store.bin encryption** — Enable "Encrypt store.bin" in settings (Privacy > Security). Verify that `store.bin` is encrypted and correctly decrypted on startup using the OS keychain. (`143875207`, `aee1cd2b5`, `85ecd7935`)
 - [ ] **graceful keychain denial** — On macOS, deny keychain access for store encryption. Verify the app handles it gracefully and falls back to unencrypted store if necessary or warns the user. (`b9c01b916`)
+- [ ] **Pause write queue during macOS sleep** — Verify that the DB write queue is paused during macOS sleep to prevent WAL corruption. (`092cc6496`)
+- [ ] **SecretStore migration** — Verify credentials migrated from `connections.json` to encrypted `SecretStore` (stored in `db.sqlite`). (`7cc41ebdc`, `c2record248183`)
+- [ ] **Auto-enable encryption on Windows/Linux** — On a fresh install on Windows/Linux, verify encryption is auto-enabled. On macOS, verify it shows as an opt-in. (`c04951886`)
+- [ ] **ChatGPT OAuth token in secrets store** — Verify ChatGPT OAuth tokens are read from the secrets store instead of legacy files. (`8b50ea865`)
+- [ ] **Consent-first keychain access** — Verify no "cold" keychain modal on startup; access should be consent-first upon user action. (`eb4340d55`)
 
 - [ ] **slow DB insert warning** — check logs. "Slow DB batch insert" warnings should be <1s in normal operation. >3s indicates contention.
 - [ ] **concurrent DB access** — UI queries + recording inserts happening simultaneously. no "database is locked" errors.
@@ -330,6 +339,7 @@ commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`
 - [ ] **privacy settings reordering** — Verify that the Security section appears first in the Privacy settings tab. (`4718785b6`)
 - [ ] **password field filtering** — Verify that password fields are skipped in the accessibility tree and not stored as OCR/text. (`8159641f5`, `d39e42e5b`)
 - [ ] **browser extension popup filtering** — Verify that browser extension popups (like Bitwarden) are filtered and not captured in the accessibility tree or as black frames. (`52d20987a`, `449ae7a68`, `931db40b6`)
+- [ ] **CLI flags for startup config** — Verify `--api-auth`, `--encrypt-secrets`, and `--retention-days` flags correctly update the startup config table and affect app behavior. (`a239d6ed6`, `ac45be264`)
 
 commits: `8a5f51dd`, `0b0d8090`
 
@@ -353,6 +363,7 @@ commits: `87abb00d`, `9464fdc9`, `0f9e43aa`, `7ea15f32`, `bf1f1004`
 - [ ] **shortcut gate** — onboarding teaches the shortcut. user must press it to proceed (`0f9e43aa`).
 - [ ] **onboarding window size** — window is correctly sized, no overflow (`7ea15f32`).
 - [ ] **onboarding doesn't re-show** — after completing onboarding, restart app. main window shows, not onboarding.
+- [ ] **Onboarding reliability** — Verify onboarding reliability with improved pipe install retries and longer timeouts. (`57641419a`)
 - [ ] **First-run 2-hour reminder notification** — On a fresh install, verify that a custom notification panel appears after approximately 2 hours as a first-run reminder.
 
 commits: `87abb00d`, `9464fdc9`, `0f9e43aa`, `7ea15f32`
@@ -626,6 +637,8 @@ commits: `8c8c445c`
 - [ ] **macOS Claude install flow** — downloads `.mcpb`, opens Claude Desktop, waits 1.5s, then opens the `.mcpb` file to trigger Claude's install modal.
 - [ ] **Windows Claude install flow** — same flow using `cmd /c start` instead of `open -a`.
 - [ ] **download error logging** — if download fails, console shows actual error message (not `{}`).
+- [ ] **MCP API key discovery (no PATH)** — Verify MCP can discover API keys without relying on the system PATH, using the screenpipe JS lib, direct DB access, or bundled bun. (`46b653276`, `560e25c0c`, `9f2e0171e`, `7e21c4c6b`)
+- [ ] **API auth for MCP server** — Verify that the MCP server requires API authentication and handles both encrypted and plaintext keys. (`792caded4`, `9f2e0171e`)
 
 ### 17. AI Agents / Pipes
 
@@ -722,6 +735,7 @@ commits: `fc830b43`, `f54d3e0d`
 - [ ] **PII scrubbing** — Ensure that PII (Personally Identifiable Information) is scrubbed from logs.
 - [ ] **Phone regex PII scrubbing preservation** — Verify phone numbers are scrubbed but accessibility bounds (which look like numbers) are NOT mangled. (`08feb4df5`)
 - [ ] **Phone regex PII scrubbing** — After generating some PII-containing data (e.g., typing phone numbers), review logs to ensure that the phone regex correctly scrubs PII and does not over-match bare digit sequences.
+- [ ] **WhatsApp phone number scrubbing** — Verify that WhatsApp phone numbers are not logged in plaintext. (`e092633e6`)
 
 ### 20. Vault Lock (Encryption at rest)
 
