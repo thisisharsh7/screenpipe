@@ -1345,13 +1345,15 @@ impl DatabaseManager {
 
         if (count as usize) < max_stored {
             // Under capacity — just insert
+            let mut tx = self.begin_immediate_with_retry().await?;
             sqlx::query(
                 "INSERT INTO speaker_embeddings (embedding, speaker_id) VALUES (vec_f32(?1), ?2)",
             )
             .bind(bytes)
             .bind(speaker_id)
-            .execute(&self.pool)
+            .execute(&mut **tx.conn())
             .await?;
+            tx.commit().await?;
         } else {
             // At capacity — replace the most redundant embedding (closest to centroid)
             // to keep the collection diverse and adapting to voice drift.
@@ -1378,13 +1380,15 @@ impl DatabaseManager {
 
                 if let Some((redundant_id,)) = most_redundant {
                     // Replace it with the new embedding
+                    let mut tx = self.begin_immediate_with_retry().await?;
                     sqlx::query(
                         "UPDATE speaker_embeddings SET embedding = vec_f32(?1) WHERE id = ?2",
                     )
                     .bind(bytes)
                     .bind(redundant_id)
-                    .execute(&self.pool)
+                    .execute(&mut **tx.conn())
                     .await?;
+                    tx.commit().await?;
                     debug!(
                         "speaker {}: rotated embedding {} (closest to centroid) with new sample",
                         speaker_id, redundant_id
@@ -1438,14 +1442,16 @@ impl DatabaseManager {
         };
 
         let bytes: &[u8] = new_centroid.as_bytes();
+        let mut tx = self.begin_immediate_with_retry().await?;
         sqlx::query(
             "UPDATE speakers SET centroid = vec_f32(?1), embedding_count = ?2 WHERE id = ?3",
         )
         .bind(bytes)
         .bind(new_count)
         .bind(speaker_id)
-        .execute(&self.pool)
+        .execute(&mut **tx.conn())
         .await?;
+        tx.commit().await?;
 
         Ok(())
     }
@@ -2222,11 +2228,13 @@ impl DatabaseManager {
         frame_id: i64,
         text_source: &str,
     ) -> Result<(), anyhow::Error> {
+        let mut tx = self.begin_immediate_with_retry().await?;
         sqlx::query("UPDATE frames SET text_source = ?1 WHERE id = ?2")
             .bind(text_source)
             .bind(frame_id)
-            .execute(&self.pool)
+            .execute(&mut **tx.conn())
             .await?;
+        tx.commit().await?;
         Ok(())
     }
 
@@ -5182,11 +5190,13 @@ impl DatabaseManager {
         chunk_id: i64,
         blob_id: &str,
     ) -> Result<(), sqlx::Error> {
+        let mut tx = self.begin_immediate_with_retry().await?;
         sqlx::query("UPDATE video_chunks SET cloud_blob_id = ?1 WHERE id = ?2")
             .bind(blob_id)
             .bind(chunk_id)
-            .execute(&self.pool)
+            .execute(&mut **tx.conn())
             .await?;
+        tx.commit().await?;
         Ok(())
     }
 
@@ -5196,11 +5206,13 @@ impl DatabaseManager {
         frame_id: i64,
         blob_id: &str,
     ) -> Result<(), sqlx::Error> {
+        let mut tx = self.begin_immediate_with_retry().await?;
         sqlx::query("UPDATE frames SET cloud_blob_id = ?1 WHERE id = ?2")
             .bind(blob_id)
             .bind(frame_id)
-            .execute(&self.pool)
+            .execute(&mut **tx.conn())
             .await?;
+        tx.commit().await?;
         Ok(())
     }
 
@@ -5277,10 +5289,12 @@ impl DatabaseManager {
     }
 
     pub async fn mark_speaker_as_hallucination(&self, id: i64) -> Result<(), sqlx::Error> {
+        let mut tx = self.begin_immediate_with_retry().await?;
         sqlx::query("UPDATE speakers SET hallucination = TRUE WHERE id = ?")
             .bind(id)
-            .execute(&self.pool)
+            .execute(&mut **tx.conn())
             .await?;
+        tx.commit().await?;
 
         Ok(())
     }
@@ -5345,11 +5359,13 @@ impl DatabaseManager {
 
     // Add method to update frame names
     pub async fn update_frame_name(&self, frame_id: i64, name: &str) -> Result<(), sqlx::Error> {
+        let mut tx = self.begin_immediate_with_retry().await?;
         sqlx::query("UPDATE frames SET name = ?1 WHERE id = ?2")
             .bind(name)
             .bind(frame_id)
-            .execute(&self.pool)
+            .execute(&mut **tx.conn())
             .await?;
+        tx.commit().await?;
         Ok(())
     }
 
@@ -5359,11 +5375,13 @@ impl DatabaseManager {
         video_chunk_id: i64,
         name: &str,
     ) -> Result<(), sqlx::Error> {
+        let mut tx = self.begin_immediate_with_retry().await?;
         sqlx::query("UPDATE frames SET name = ?1 WHERE video_chunk_id = ?2")
             .bind(name)
             .bind(video_chunk_id)
-            .execute(&self.pool)
+            .execute(&mut **tx.conn())
             .await?;
+        tx.commit().await?;
         Ok(())
     }
 
@@ -6068,11 +6086,13 @@ LIMIT ? OFFSET ?
         embedding_id: i64,
         to_speaker_id: i64,
     ) -> Result<(), sqlx::Error> {
+        let mut tx = self.begin_immediate_with_retry().await?;
         sqlx::query("UPDATE speaker_embeddings SET speaker_id = ? WHERE id = ?")
             .bind(to_speaker_id)
             .bind(embedding_id)
-            .execute(&self.pool)
+            .execute(&mut **tx.conn())
             .await?;
+        tx.commit().await?;
         Ok(())
     }
 
@@ -6082,22 +6102,26 @@ LIMIT ? OFFSET ?
         audio_chunk_id: i64,
         new_speaker_id: i64,
     ) -> Result<u64, sqlx::Error> {
+        let mut tx = self.begin_immediate_with_retry().await?;
         let result =
             sqlx::query("UPDATE audio_transcriptions SET speaker_id = ? WHERE audio_chunk_id = ?")
                 .bind(new_speaker_id)
                 .bind(audio_chunk_id)
-                .execute(&self.pool)
+                .execute(&mut **tx.conn())
                 .await?;
+        tx.commit().await?;
         Ok(result.rows_affected())
     }
 
     /// Create a new speaker with a name (no embedding)
     pub async fn create_speaker_with_name(&self, name: &str) -> Result<Speaker, sqlx::Error> {
+        let mut tx = self.begin_immediate_with_retry().await?;
         let id = sqlx::query("INSERT INTO speakers (name) VALUES (?)")
             .bind(name)
-            .execute(&self.pool)
+            .execute(&mut **tx.conn())
             .await?
             .last_insert_rowid();
+        tx.commit().await?;
 
         Ok(Speaker {
             id,
