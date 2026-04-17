@@ -116,6 +116,8 @@ commits: `28e5c247`
 - [ ] **Batch transcription mode** — Verify that batch transcription mode works correctly with both cloud and Deepgram engines.
 - [ ] **Cloud transcription batch capping** — Send large audio chunks (>200s) to cloud transcription. Verify they are correctly capped/split and do not trigger Cloudflare 413 errors. (`792145ac6`)
 - [ ] **Lower RMS threshold for batch mode output devices** — In batch transcription mode, verify that output devices correctly use a lower RMS threshold.
+- [ ] **Audio device recovery after sleep/wake** — Verify that audio devices are force-restarted and capture resumes correctly after macOS sleep/wake or display changes. (`48d31ffaa`)
+- [ ] **Unblock batch-mode transcription** — Verify that batch-mode transcription doesn't get blocked and false stall alarms are eliminated. (`e9696fb5d`)
 - [ ] **OpenAI-compatible STT connection test** — Configure OpenAI-compatible STT, then use the connection test feature. Verify it accurately reports connection status.
 - [ ] **OpenAI-compatible STT editable model input** — When using OpenAI-compatible STT, verify that the model input fields are editable.
 - [ ] **OpenAI-compatible STT with custom vocabulary** — Configure OpenAI-compatible STT with a custom vocabulary. Verify that transcription accuracy improves when this vocabulary is present in the audio. Verify that vocabulary is sent as both prompt and context. (`d3a4b6bcc`)
@@ -189,6 +191,8 @@ commits: `6dd5d98e`, `831ad258`
 - [ ] **very fast content changes** — scroll quickly through a document. OCR captures content, no crashes from buffer overflows.
 - [ ] **corrupt pixel buffer** — sck-rs handles corrupt ScreenCaptureKit buffers gracefully (no SIGABRT). fixed in `831ad258`.
 - [ ] **window capture only on changed frames** — window enumeration (CGWindowList) should NOT run on skipped frames. verify by checking CPU on idle multi-monitor setup.
+- [ ] **Reduce CPU spikes from unnecessary OCR fallback** — Verify that CPU spikes are reduced by avoiding unnecessary OCR fallbacks. (`35b18c86b`)
+- [ ] **Pause write queue during macOS sleep** — Verify that the database write queue is paused during macOS sleep to prevent WAL corruption. (`092cc6496`)
 - [ ] **Meeting app OCR force** — Open a meeting app (Zoom, Teams, Meet). Verify OCR is forced for these apps even if accessibility is available. (`b18ae2253`)
 - [ ] **Accessibility automation properties** — Verify automation properties (labels, roles, automation IDs) are correctly captured in the accessibility tree across Windows, macOS, and Linux. (`1b7d0db5b`)
 - [ ] **DB write coalesce queue** — Under heavy load (e.g. many pipes + high FPS), verify no "database is locked" errors and no vision stalls due to write contention. (`39c016cb3`, `d119d060d`, `231521192`)
@@ -217,17 +221,17 @@ commits: `d9d43d31`, `620c89a5`, `14acf6f0`
 - [ ] **startup permission gate** — on first launch, permissions are requested before recording starts (`d9d43d31`).
 - [ ] **faster permission polling** — permission status checked every 5-10 seconds, not 30 (`d9d43d31`).
 - [ ] **No recurring permission modal after close** — Grant macOS permissions, quit the app, and relaunch it multiple times. Verify that the macOS permission modal does NOT reappear every time the app is closed.
-
-- [ ] **fresh install — all prompts appear** — screen recording, microphone, accessibility prompts all show on first launch.
-- [ ] **denied permission → opens System Settings** — if user previously denied mic permission, clicking "grant" opens System Settings > Privacy directly (`620c89a5`).
-- [ ] **permission revoked while running** — go to System Settings, revoke screen recording. app shows red permission banner within 10 seconds.
-- [ ] **permission banner is visible** — solid red `bg-destructive` banner at top of main window when any permission missing. not subtle (`9c0ba5d1`).
-- [ ] **permission recovery page** — navigating to /permission-recovery shows clear instructions.
-- [ ] **startup permission gate** — on first launch, permissions are requested before recording starts (`d9d43d31`).
-- [ ] **faster permission polling** — permission status checked every 5-10 seconds, not 30 (`d9d43d31`).
 - [ ] **improved permission recovery UX** — Verify that the user experience for recovering from denied permissions is clear and intuitive. (`57cca740`)
+- [ ] **Event-driven permission loss detection** — Verify that permission loss is detected via health events, leading to a faster and more reliable recovery UI. (`954b1fa60`, `7bc0c6f38`, `8ede40425`, `ccae9f17d`)
+- [ ] **Keychain permission recovery modal** — Verify that the recovery modal is re-shown if permissions remain denied, and it handles keychain access with consent-first logic. (`6915bbf50`, `2664d6225`, `eb4340d55`)
 
-### 7. Apple Intelligence (macOS 26+)
+### 8. secrets & auth
+
+- [ ] **SecretStore migration** — Verify that credentials (API keys, OAuth tokens) are correctly migrated from `connections.json` and legacy files to the encrypted `SecretStore`. (`7cc41ebdc`, `956e4f074`, `8b50ea865`, `ad2447a0c`)
+- [ ] **Sync API auth key to SecretStore** — Verify that the API auth key is synced to the SecretStore as plaintext for local access. (`6083d422f`)
+- [ ] **Encryption on Windows/Linux** — Verify that `SecretStore` encryption works on Windows (using DPAPI) and Linux (using Keyring/Libsecret). (`76369f88d`, `c04951886`)
+
+### 9. Apple Intelligence (macOS 26+)
 
 commits: `d4abc619`, `4f4a8282`, `31f37407`, `2223af9a`, `b34a4abd`, `303958f9`
 
@@ -291,6 +295,7 @@ commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`
 - [ ] **no concurrent reconciliation issues** — Verify that concurrent reconciliation processes do not cause issues during heavy load or sync operations. (`1d436bc3`)
 - [ ] **pipe_config blobs skipped in sync** — Verify that `pipe_config` blobs are correctly skipped during synchronization, preventing unnecessary data transfer and potential issues. (`08d5c53a`)
 - [ ] **Pi's native auto-compaction for pipe session history** — Verify that Pi's native auto-compaction feature for pipe session history works as expected, preventing indefinite growth of history and maintaining performance. (`8f49e2cf`)
+- [ ] **disk usage refresh when data dir changes** — In Settings, change the data directory. Verify that the disk usage display updates correctly. (`8e32c842b`)
 - [ ] **UTF-8 panic with long multi-byte strings** — Introduce long strings with multi-byte UTF-8 characters (e.g., in window titles, chat input, search queries). Verify no panics occur when these strings are truncated, stored, or processed.
 - [ ] **fsync snapshots before DB commit** — verify data integrity by force-quitting during heavy capture; snapshots should match DB entries. (`2e63282b8`)
 - [ ] **Data directory setting location** — Verify that the data directory setting is now located in the "Storage" tab of the settings menu. (`0d3ffe30a`)
@@ -354,6 +359,8 @@ commits: `87abb00d`, `9464fdc9`, `0f9e43aa`, `7ea15f32`, `bf1f1004`
 - [ ] **onboarding window size** — window is correctly sized, no overflow (`7ea15f32`).
 - [ ] **onboarding doesn't re-show** — after completing onboarding, restart app. main window shows, not onboarding.
 - [ ] **First-run 2-hour reminder notification** — On a fresh install, verify that a custom notification panel appears after approximately 2 hours as a first-run reminder.
+- [ ] **Pipe install reliability** — Verify that pipe installation is reliable, with improved retries and longer timeouts. (`57641419a`)
+- [ ] **Auto-enable encryption on Windows/Linux** — Verify that encryption is automatically enabled on Windows and Linux during onboarding, while macOS still shows an opt-in toggle. (`c04951886`)
 
 commits: `87abb00d`, `9464fdc9`, `0f9e43aa`, `7ea15f32`
 
@@ -626,6 +633,8 @@ commits: `8c8c445c`
 - [ ] **macOS Claude install flow** — downloads `.mcpb`, opens Claude Desktop, waits 1.5s, then opens the `.mcpb` file to trigger Claude's install modal.
 - [ ] **Windows Claude install flow** — same flow using `cmd /c start` instead of `open -a`.
 - [ ] **download error logging** — if download fails, console shows actual error message (not `{}`).
+- [ ] **MCP API key discovery via JS lib** — Verify that MCP can discover the API key without relying on the system `PATH`. (`46b653276`, `e555fe441`, `560e25c0c`)
+- [ ] **MCP read API key from db.sqlite** — Verify that MCP correctly reads both encrypted and plaintext API keys from `db.sqlite`. (`9f2e0171e`, `560e25c0c`)
 
 ### 17. AI Agents / Pipes
 
@@ -647,6 +656,11 @@ commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`,
 - [ ] **Pipe token handling** — Ensure that Pi configuration for pipes uses the actual token value, not the environment variable name.
 - [ ] **Pipe user_token passthrough** — Verify that the `user_token` is correctly passed to Pi pre-configuration so pipes use the screenpipe provider.
 - [ ] **Pipe preset override** — Install a pipe from the store. Verify its preset can be overridden by user's default. (`bee49f1e7`)
+- [ ] **Claude Opus 4.7 support** — Verify that Claude Opus 4.7 is available and works via the AI Gateway. (`1318ab19d`)
+- [ ] **Gemma 4 31B support** — Verify that Gemma 4 31B (via Tinfoil) is available, marked as text-only, and has a 256k context window. (`e19584209`, `6ab90f486`, `ef4340d55`, `bfb05b605`)
+- [ ] **max_completion_tokens support** — Verify that models requiring `max_completion_tokens` (Azure Foundry, GPT-5, o-series) work correctly via the chat interface. (`955ffd14b`)
+- [ ] **chat UI fix for pi agent** — Verify that the chat UI for the pi agent correctly displays and functions. (`59cccfc7`)
+- [ ] **fetch model list from gateway** — Verify that the model list in the pi agent is fetched from the gateway rather than being hardcoded. (`cd4b71135`, `b003c3735`)
 - [ ] **Pipe configurable timeout** — Add `timeout` to pipe.md frontmatter. Verify pipe respects this timeout. (`cc0ecef53`)
 - [ ] **Pipe store caching** — Navigate pipe store and connections pages. Verify fast loading due to client-side caching. (`f501c19fb`)
 - [ ] **Primary + fallback AI preset UI** — Verify the UI for primary and fallback AI presets for pipes works as expected. (`da206471a`)
