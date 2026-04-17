@@ -1091,7 +1091,7 @@ async fn connection_proxy(
 
     // Load credentials
     let creds = mgr.get_credentials(&id).ok().flatten();
-    let oauth_token = screenpipe_connect::oauth::read_oauth_token(&id);
+    let oauth_token = screenpipe_connect::oauth::read_oauth_token(&id).await;
 
     // Resolve auth
     let auth = resolve_auth(
