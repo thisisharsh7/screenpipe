@@ -1180,6 +1180,17 @@ fn get_focused_app_name_lightweight() -> Option<String> {
     let app = sys.focused_app().ok()?;
     let pid = app.pid().ok()?;
     ns::RunningApp::with_pid(pid)
+        .or_else(|| {
+            let workspace = ns::Workspace::shared();
+            let apps = workspace.running_apps();
+            for i in 0..apps.len() {
+                let app = &apps[i];
+                if app.is_active() {
+                    return Some(app.retained());
+                }
+            }
+            None
+        })
         .and_then(|app| app.localized_name())
         .map(|s| s.to_string())
 }

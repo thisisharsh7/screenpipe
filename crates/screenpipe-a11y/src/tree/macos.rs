@@ -202,7 +202,18 @@ impl MacosTreeWalker {
             Ok(pid) => pid,
             Err(_) => return Ok(TreeWalkResult::NotFound),
         };
-        let Some(app) = ns::RunningApp::with_pid(pid) else {
+        let app = ns::RunningApp::with_pid(pid).or_else(|| {
+            let workspace = ns::Workspace::shared();
+            let apps = workspace.running_apps();
+            for i in 0..apps.len() {
+                let app = &apps[i];
+                if app.is_active() {
+                    return Some(app.retained());
+                }
+            }
+            None
+        });
+        let Some(app) = app else {
             return Ok(TreeWalkResult::NotFound);
         };
 
@@ -245,6 +256,11 @@ impl MacosTreeWalker {
         // and causes the renderer to materialize the full AX tree.
         // Ref: https://codereview.chromium.org/6909013
         // Ref: https://github.com/electron/electron/issues/7206
+        // Set AXManualAccessibility to force the accessibility tree on Electron apps (e.g. Obsidian)
+        let ma_attr_name = cf::String::from_str("AXManualAccessibility");
+        let ma_attr = ax::Attr::with_string(&ma_attr_name);
+        let _ = ax_app.set_attr(ma_attr, cf::Boolean::value_true());
+
         let eui_attr_name = cf::String::from_str("AXEnhancedUserInterface");
         let eui_attr = ax::Attr::with_string(&eui_attr_name);
         let _ = ax_app.set_attr(eui_attr, cf::Boolean::value_true());
