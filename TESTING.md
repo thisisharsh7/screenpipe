@@ -136,6 +136,9 @@ commits: `28e5c247`
 - [ ] **dead System Audio auto-reconnect** — Simulate a dead system audio stream. Verify it auto-reconnects and resumes capture. (`0f287761d`)
 - [ ] **per-device audio toggle** — In the tray menu, verify you can toggle recording for individual audio devices. (`3ee3defcb`)
 - [ ] **stable audio device order** — Verify that audio devices listed in the tray menu maintain a stable order across refreshes. (`4577ac8a6`)
+- [ ] **CoreAudio Process Tap (Experimental)** — Enable "Use CoreAudio Process Tap" in recording settings. Verify system audio is captured on macOS 14.4+. (`d4adec162`)
+- [ ] **CoreAudio device change recovery** — With Process Tap enabled, change default output device. Verify capture re-anchors automatically. (`60158c7d9`)
+- [ ] **CoreAudio debug counters** — Check logs for `callback-rate` and `peak-amp` with Process Tap enabled. (`dcc9fd3bb`)
 
 
 #### Audio device recovery (monitor unplug / device switch)
@@ -196,6 +199,8 @@ commits: `6dd5d98e`, `831ad258`
 - [ ] **reduced CPU spikes in vision/capture pipeline** — Actively browse and use applications, verifying that CPU spikes in the vision/capture pipeline are significantly reduced. (`8f7294e6`)
 - [ ] **OCR bounding boxes normalized on Windows/Linux** — On Windows and Linux, verify that OCR bounding boxes are correctly normalized to the 0-1 range, ensuring consistent text overlay and interaction. (`aba74513`)
 - [ ] **Debounced monitor capture errors** — Simulate transient monitor capture errors. Verify that these errors are debounced and do not lead to excessive error logging or app crashes.
+- [ ] **Obsidian OCR optimization** — Verify Obsidian captures are fast and CPU spikes are reduced via Chromium flag/targeted OCR skip. (`9e6c0b54f`, `77b35e61a`)
+- [ ] **NSWorkspace app tagging** — Verify Electron apps (like Obsidian, VS Code) are correctly tagged with app name via NSWorkspace instead of AX. (`c421c718d`)
 
 ### 6. Battery Saver Mode
 
@@ -296,6 +301,8 @@ commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`
 - [ ] **Data directory setting location** — Verify that the data directory setting is now located in the "Storage" tab of the settings menu. (`0d3ffe30a`)
 - [ ] **store.bin encryption** — Enable "Encrypt store.bin" in settings (Privacy > Security). Verify that `store.bin` is encrypted and correctly decrypted on startup using the OS keychain. (`143875207`, `aee1cd2b5`, `85ecd7935`)
 - [ ] **graceful keychain denial** — On macOS, deny keychain access for store encryption. Verify the app handles it gracefully and falls back to unencrypted store if necessary or warns the user. (`b9c01b916`)
+- [ ] **OCR row tagging** — Verify `ocr_text` rows in the database are tagged with `app_name`, `window_name`, and `focused` status. (`1ae7a4015`)
+- [ ] **Bulk OCR insert performance** — Verify fast bulk insertion of OCR elements without blocking capture. (`e35be21f9`)
 
 - [ ] **slow DB insert warning** — check logs. "Slow DB batch insert" warnings should be <1s in normal operation. >3s indicates contention.
 - [ ] **concurrent DB access** — UI queries + recording inserts happening simultaneously. no "database is locked" errors.
@@ -681,6 +688,8 @@ commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`,
 - [ ] **Rich activity-summary** — Verify that activity summaries include details about windows, URLs, and audio transcriptions. (`f2d8ba1dad3`)
 - [ ] **OpenAI-compatible transcription endpoint** — Verify that the `/v1/audio/transcriptions` endpoint works correctly with standard OpenAI clients. (`59deeba19`)
 - [ ] **Mermaid diagram XSS sanitization** — Verify that mermaid diagrams in the UI are correctly sanitized to prevent XSS attacks. (`3405e9793`)
+- [ ] **Pi local API authentication** — Verify Pi agent can authenticate with local Screenpipe API using `api_auth_key`. (`3041df419`)
+- [ ] **Simple onboarding UX** — Verify new simpler onboarding with 2 default presets and FinancialSense connector. (`e5a5b7416`)
 
 commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`, `5908d7f4`, `46422869`, `4f43da70`, `71a1a537`, `6abaaa36`
 
@@ -722,6 +731,7 @@ commits: `fc830b43`, `f54d3e0d`
 - [ ] **PII scrubbing** — Ensure that PII (Personally Identifiable Information) is scrubbed from logs.
 - [ ] **Phone regex PII scrubbing preservation** — Verify phone numbers are scrubbed but accessibility bounds (which look like numbers) are NOT mangled. (`08feb4df5`)
 - [ ] **Phone regex PII scrubbing** — After generating some PII-containing data (e.g., typing phone numbers), review logs to ensure that the phone regex correctly scrubs PII and does not over-match bare digit sequences.
+- [ ] **Debug a11y-walk subcommand** — Run `screenpipe debug a11y-walk`. Verify it prints the accessibility tree correctly. (`3ea787f58`)
 
 ### 20. Vault Lock (Encryption at rest)
 
@@ -744,6 +754,7 @@ commits: `ad431b513`, `d9722bccc`, `4df21e83d`
 - [ ] **Ignore incognito toggle** — Verify that the "Ignore Incognito Windows" toggle in settings correctly prevents recording of private windows. (`d9722bccc`)
 - [ ] **Incognito detection UI feedback** — Verify that the UI correctly reflects when an incognito window is being ignored.
 - [ ] **DRM pause behavior** — Play DRM-protected content (e.g., Netflix in Safari). Verify that Screenpipe pauses recording gracefully and resumes automatically once the DRM content is closed, without crashing the server. (`3d9f0e8bb`)
+- [ ] **Omnissa/VMware Horizon DRM pause** — Verify capture pauses when Omnissa/VMware Horizon Client is active. (`75f8a7ce1`)
 
 commits: `fc830b43`
 
@@ -863,6 +874,7 @@ commits: `c8769545b`, `4f522325b`, `54000c295`
 - [ ] **New service connections** — Verify Brex, Stripe, Sentry, Vercel, Pipedrive, Intercom, and Limitless connections can be authorized and sync data. (`4f522325b`, `54000c295`)
 - [ ] **Multi-instance OAuth for GitHub and Notion** — Verify that multi-instance OAuth works for GitHub and Notion, including fetching identity after token exchange. (`5d6ee5da3`)
 - [ ] **Glean icon in connections grid** — Verify that the Glean icon is displayed in the connections grid. (`ec6374e1d`)
+- [ ] **New connectors (Fireflies, Otter, Lexi)** — Verify Fireflies, Otter, and Lexi connectors can be configured and sync data. (`2b040ea9a`)
 
 ### 28. Deployment & Remote Management
 
