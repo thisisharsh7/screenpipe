@@ -272,6 +272,15 @@ function isInsidePipeDir(targetPath: string, pipeDir: string): boolean {
   );
 }
 
+function checkMacOSTccPaths(cmd: string): string | null {
+  const protectedPaths =
+    /(~\/|\/Users\/[^\/]+\/)(Documents|Desktop|Downloads|Library|Pictures|Movies|Music)(\/|\s|$|['"]|\\)/i;
+  if (protectedPaths.test(cmd)) {
+    return "Access to macOS protected folders (Documents, Desktop, Downloads, Library, Pictures, Movies, Music) is blocked to prevent recurring TCC permission popups. Please instruct the user to move required files to a non-protected directory or the pipe's workspace.";
+  }
+  return null;
+}
+
 function checkFilesystemWrite(cmd: string): string | null {
   if (!PERMS?.pipe_dir) return null;
   const pipeDir = PERMS.pipe_dir;
@@ -463,6 +472,12 @@ export default function (pi: ExtensionAPI) {
           "Only localhost and LAN addresses are allowed. " +
           "Disable offline mode in Settings → Privacy to restore external access.",
       };
+    }
+
+    // macOS TCC sandbox: block paths that trigger permission popups
+    const tccViolation = checkMacOSTccPaths(cmd);
+    if (tccViolation) {
+      return { block: true, reason: tccViolation };
     }
 
     // Filesystem sandbox: block writes outside pipe_dir
