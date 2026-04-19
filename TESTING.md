@@ -136,6 +136,8 @@ commits: `28e5c247`
 - [ ] **dead System Audio auto-reconnect** — Simulate a dead system audio stream. Verify it auto-reconnects and resumes capture. (`0f287761d`)
 - [ ] **per-device audio toggle** — In the tray menu, verify you can toggle recording for individual audio devices. (`3ee3defcb`)
 - [ ] **stable audio device order** — Verify that audio devices listed in the tray menu maintain a stable order across refreshes. (`4577ac8a6`)
+- [ ] **CoreAudio Process Tap (macOS 14.4+)** — Enable experimental CoreAudio tap in settings. Verify system audio is captured correctly. (`d4adec162`)
+- [ ] **CoreAudio Tap device change** — While CoreAudio tap is active, change the default system output device. Verify audio capture re-anchors and continues. (`60158c7d9`)
 
 
 #### Audio device recovery (monitor unplug / device switch)
@@ -196,6 +198,9 @@ commits: `6dd5d98e`, `831ad258`
 - [ ] **reduced CPU spikes in vision/capture pipeline** — Actively browse and use applications, verifying that CPU spikes in the vision/capture pipeline are significantly reduced. (`8f7294e6`)
 - [ ] **OCR bounding boxes normalized on Windows/Linux** — On Windows and Linux, verify that OCR bounding boxes are correctly normalized to the 0-1 range, ensuring consistent text overlay and interaction. (`aba74513`)
 - [ ] **Debounced monitor capture errors** — Simulate transient monitor capture errors. Verify that these errors are debounced and do not lead to excessive error logging or app crashes.
+- [ ] **Electron App Tagging** — Verify that Electron apps (like Discord, Slack, VS Code) are correctly tagged with their app name and window title in the database, now using NSWorkspace. (`c421c718d`)
+- [ ] **OCR Metadata** — Verify `ocr_text` rows in the DB are correctly tagged with `app_name`, `window_name`, and `focused` status. (`1ae7a4015`)
+- [ ] **Obsidian OCR optimization** — Verify Obsidian captures still occur but with reduced CPU/OCR overhead. (`9e6c0b54f`, `77b35e61a`)
 
 ### 6. Battery Saver Mode
 
@@ -330,6 +335,8 @@ commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`
 - [ ] **privacy settings reordering** — Verify that the Security section appears first in the Privacy settings tab. (`4718785b6`)
 - [ ] **password field filtering** — Verify that password fields are skipped in the accessibility tree and not stored as OCR/text. (`8159641f5`, `d39e42e5b`)
 - [ ] **browser extension popup filtering** — Verify that browser extension popups (like Bitwarden) are filtered and not captured in the accessibility tree or as black frames. (`52d20987a`, `449ae7a68`, `931db40b6`)
+- [ ] **AI Gateway Model Cleanup** — Verify that broken models (e.g., `glm-5.1`, `minimax-m2.7`) are removed from the AI provider selections. (`90339ecc2`)
+- [ ] **Gemini 3 Vertex routing** — Verify Gemini 3 models are correctly routed to the Vertex global endpoint and `flash-lite` is available. (`d3554d178`)
 
 commits: `8a5f51dd`, `0b0d8090`
 
@@ -354,6 +361,7 @@ commits: `87abb00d`, `9464fdc9`, `0f9e43aa`, `7ea15f32`, `bf1f1004`
 - [ ] **onboarding window size** — window is correctly sized, no overflow (`7ea15f32`).
 - [ ] **onboarding doesn't re-show** — after completing onboarding, restart app. main window shows, not onboarding.
 - [ ] **First-run 2-hour reminder notification** — On a fresh install, verify that a custom notification panel appears after approximately 2 hours as a first-run reminder.
+- [ ] **Simplified Onboarding** — Run a fresh install and verify the simplified onboarding flow with 2 default presets. (`e5a5b7416`)
 
 commits: `87abb00d`, `9464fdc9`, `0f9e43aa`, `7ea15f32`
 
@@ -415,6 +423,9 @@ commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`, `e61501da`, `039d5fea`,
 - [ ] **Chat image viewer** — verify images can be viewed in chat. (`2bcdf8d8b`)
 - [ ] **Chat preset dropdown** — verify AI preset switching within chat. (`2bcdf8d8b`)
 - [ ] **Memories Settings UI** — verify frame_id relationship and Memories settings work as expected. (`67f4c4304`)
+- [ ] **Chat UI header cleanup** — Verify the "Pipe AI / Screen Activity Assistant" header label is removed from the chat interface. (`11308098d`)
+- [ ] **AI Gateway Model Cleanup** — Verify that broken models (e.g., `glm-5.1`, `minimax-m2.7`) are removed from the AI provider selections. (`90339ecc2`)
+- [ ] **Gemini 3 Vertex routing** — Verify Gemini 3 models are correctly routed to the Vertex global endpoint and `flash-lite` is available. (`d3554d178`)
 
 commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`
 
@@ -722,6 +733,7 @@ commits: `fc830b43`, `f54d3e0d`
 - [ ] **PII scrubbing** — Ensure that PII (Personally Identifiable Information) is scrubbed from logs.
 - [ ] **Phone regex PII scrubbing preservation** — Verify phone numbers are scrubbed but accessibility bounds (which look like numbers) are NOT mangled. (`08feb4df5`)
 - [ ] **Phone regex PII scrubbing** — After generating some PII-containing data (e.g., typing phone numbers), review logs to ensure that the phone regex correctly scrubs PII and does not over-match bare digit sequences.
+- [ ] **Debug a11y-walk** — Run `screenpipe debug a11y-walk` and verify it correctly dumps the accessibility tree of the focused window. (`3ea787f58`)
 
 ### 20. Vault Lock (Encryption at rest)
 
@@ -863,6 +875,7 @@ commits: `c8769545b`, `4f522325b`, `54000c295`
 - [ ] **New service connections** — Verify Brex, Stripe, Sentry, Vercel, Pipedrive, Intercom, and Limitless connections can be authorized and sync data. (`4f522325b`, `54000c295`)
 - [ ] **Multi-instance OAuth for GitHub and Notion** — Verify that multi-instance OAuth works for GitHub and Notion, including fetching identity after token exchange. (`5d6ee5da3`)
 - [ ] **Glean icon in connections grid** — Verify that the Glean icon is displayed in the connections grid. (`ec6374e1d`)
+- [ ] **New Connectors** — Verify Fireflies, Otter, Lexi, and FinancialSense connectors can be configured and sync data. (`2b040ea9a`, `e5a5b7416`)
 
 ### 28. Deployment & Remote Management
 
