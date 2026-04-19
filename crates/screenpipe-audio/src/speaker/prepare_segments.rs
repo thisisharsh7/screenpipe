@@ -126,13 +126,29 @@ pub async fn prepare_segments(
             .as_ref()
             .expect("embedding extractor checked above")
             .clone();
-        let segments = get_segments(
+        let segments = match get_segments(
             &audio_data,
             16000,
             segmentation_model_path,
             embedding_extractor,
             embedding_manager,
-        )?;
+        ) {
+            Ok(segments) => segments,
+            Err(e) => {
+                let err_str = e.to_string();
+                if err_str.contains("Protobuf") || err_str.contains("Load model from") {
+                    error!("segmentation model corrupt, invalidating cache: {:?}", e);
+                    if let Err(err) = crate::speaker::models::invalidate_cached_model(
+                        &crate::speaker::models::PyannoteModel::Segmentation,
+                    )
+                    .await
+                    {
+                        error!("failed to invalidate corrupt segmentation model: {:?}", err);
+                    }
+                }
+                return Err(e);
+            }
+        };
 
         for segment in segments {
             match segment {
