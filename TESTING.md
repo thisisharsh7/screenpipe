@@ -136,6 +136,9 @@ commits: `28e5c247`
 - [ ] **dead System Audio auto-reconnect** — Simulate a dead system audio stream. Verify it auto-reconnects and resumes capture. (`0f287761d`)
 - [ ] **per-device audio toggle** — In the tray menu, verify you can toggle recording for individual audio devices. (`3ee3defcb`)
 - [ ] **stable audio device order** — Verify that audio devices listed in the tray menu maintain a stable order across refreshes. (`4577ac8a6`)
+- [ ] **CoreAudio Process Tap (macOS 14.4+)** — On macOS 14.4+, enable the "Experimental CoreAudio Tap" in recording settings. Verify it captures system audio correctly. (`d4adec162`, `9b6d80237`)
+- [ ] **CoreAudio Tap device re-anchoring** — While using CoreAudio Tap, change the system default output device. Verify capture re-anchors to the new device automatically. (`60158c7d9`)
+- [ ] **Non-fatal silent macOS output** — On macOS, verify that silent output streams are treated as non-fatal and do not trigger stream stall alarms. (`2d94a84da`)
 
 
 #### Audio device recovery (monitor unplug / device switch)
@@ -196,6 +199,13 @@ commits: `6dd5d98e`, `831ad258`
 - [ ] **reduced CPU spikes in vision/capture pipeline** — Actively browse and use applications, verifying that CPU spikes in the vision/capture pipeline are significantly reduced. (`8f7294e6`)
 - [ ] **OCR bounding boxes normalized on Windows/Linux** — On Windows and Linux, verify that OCR bounding boxes are correctly normalized to the 0-1 range, ensuring consistent text overlay and interaction. (`aba74513`)
 - [ ] **Debounced monitor capture errors** — Simulate transient monitor capture errors. Verify that these errors are debounced and do not lead to excessive error logging or app crashes.
+- [ ] **Obsidian OCR optimization** — Verify that Obsidian capture uses targeted OCR skipping and cut CPU spikes/costs without dropping relevant captures. (`9e6c0b54f`, `77b35e61a`)
+- [ ] **Tag OCR with app/window context** — Verify that `ocr_text` rows in the database are correctly tagged with `app_name`, `window_name`, and `focused` status. (`1ae7a4015`)
+- [ ] **Event-driven monitor watcher (macOS)** — On macOS, verify that monitor changes (plug/unplug) are detected via event-driven callbacks (`CGDisplayRegisterReconfigurationCallback`) rather than polling. (`42ada7d98`)
+- [ ] **NSWorkspace app tagging for Electron** — Verify that Electron apps (and others) are correctly tagged via `NSWorkspace` instead of just `AX` observers. (`c421c718d`)
+- [ ] **A11y AXEnhancedUserInterface caching** — Verify that `AXEnhancedUserInterface` toggles are cached per PID (60s TTL) to improve performance. (`f36c0ca66`)
+- [ ] **Screenpipe debug a11y-walk** — Run `screenpipe debug a11y-walk` and verify it correctly walks the accessibility tree for the focused window. (`3ea787f58`)
+- [ ] **Bulk-insert level-0 OCR elements** — Verify that level-0 OCR elements are bulk-inserted for better performance. (`e35be21f9`)
 
 ### 6. Battery Saver Mode
 
@@ -851,6 +861,7 @@ commits: `cf2dcd5f8`, `ad1d00d8f`, `6f623b30a`, `aaf031169`
 commits: `f6c21a022`, `31e67ae1c`, `8d0a5348d`, `b1c30e99b`
 
 - [ ] **Redesigned Onboarding** — Complete the redesigned onboarding. Verify live feed appears and opinionated pipe setup works. (`f6c21a022`)
+- [ ] **Simplified first-install UX** — Complete the simplified onboarding with default presets and cleaner chat. (`e5a5b7416`)
 - [ ] **Pipes & Fleet merged UI** — Open Pipes tab. Verify fleet devices appear in the dropdown. Verify local machine is filtered/distinct. (`31e67ae1c`, `8d0a5348d`)
 - [ ] **Scheduled vs Manual pipes** — In My Pipes, verify sub-tabs for scheduled and manual pipes. (`b1c30e99b`)
 
@@ -860,7 +871,9 @@ commits: `c8769545b`, `4f522325b`, `54000c295`
 
 - [ ] **Multi-instance connections** — Add two different accounts for the same service (e.g., two Slack workspaces). Verify both work independently. (`c8769545b`)
 - [ ] **Post-install connection modal** — After installing a pipe, verify the connection modal appears if the pipe requires a service connection. (`c8769545b`)
-- [ ] **New service connections** — Verify Brex, Stripe, Sentry, Vercel, Pipedrive, Intercom, and Limitless connections can be authorized and sync data. (`4f522325b`, `54000c295`)
+- [ ] **New service connections** — Verify Brex, Stripe, Sentry, Vercel, Pipedrive, Intercom, Limitless, Fireflies, Otter, Lexi, and financialsense connections can be authorized and sync data. (`4f522325b`, `54000c295`, `2ba94edf1`, `e5a5b7416`)
+- [ ] **AI Gateway PII scrubber & Sentry** — Verify that AI Gateway errors are captured by Sentry and PII is scrubbed from logs. (`eff9b61f1`)
+- [ ] **Obsidian e2e test** — Run the Obsidian e2e test suite and verify all tests pass. (`3ea787f58`)
 - [ ] **Multi-instance OAuth for GitHub and Notion** — Verify that multi-instance OAuth works for GitHub and Notion, including fetching identity after token exchange. (`5d6ee5da3`)
 - [ ] **Glean icon in connections grid** — Verify that the Glean icon is displayed in the connections grid. (`ec6374e1d`)
 
