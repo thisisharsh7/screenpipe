@@ -215,6 +215,23 @@ async fn flush_level0_bulk(
 
 impl DatabaseManager {
     pub async fn new(database_path: &str, config: DbConfig) -> Result<Self, sqlx::Error> {
+        let max_retries = 10;
+        let mut last_error = None;
+        for attempt in 1..=max_retries {
+            match Self::new_inner(database_path, &config).await {
+                Ok(db) => return Ok(db),
+                Err(e) if Self::is_busy_error(&e) => {
+                    tracing::warn!("database is locked during initialization (attempt {}/{}), retrying in 500ms...", attempt, max_retries);
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    last_error = Some(e);
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        Err(last_error.unwrap())
+    }
+
+    async fn new_inner(database_path: &str, config: &DbConfig) -> Result<Self, sqlx::Error> {
         debug!(
             "Initializing DatabaseManager with database path: {} (mmap={}MB, cache={}KB, read_pool={})",
             database_path,
@@ -502,7 +519,7 @@ impl DatabaseManager {
             Err(_) => return Err(sqlx::Error::PoolTimedOut),
         };
 
-        let max_retries = 3;
+        let max_retries = 15;
         let mut last_error = None;
         for attempt in 1..=max_retries {
             let mut conn =
@@ -557,7 +574,7 @@ impl DatabaseManager {
                     );
                     drop(conn);
                     last_error = Some(e);
-                    tokio::time::sleep(Duration::from_millis(50 * attempt as u64)).await;
+                    tokio::time::sleep(Duration::from_millis(100 * attempt as u64)).await;
                 }
                 Err(e) => return Err(e),
             }

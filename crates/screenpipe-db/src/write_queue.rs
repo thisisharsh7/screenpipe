@@ -474,7 +474,7 @@ async fn execute_batch(
     };
 
     // Acquire connection and BEGIN IMMEDIATE with retry logic
-    let max_retries = 3;
+    let max_retries = 15;
     let mut last_error = None;
     let mut conn_opt = None;
 
@@ -520,7 +520,7 @@ async fn execute_batch(
                 );
                 drop(conn);
                 last_error = Some(e);
-                tokio::time::sleep(Duration::from_millis(50 * attempt as u64)).await;
+                tokio::time::sleep(Duration::from_millis(100 * attempt as u64)).await;
                 continue;
             }
             Err(e) => {
