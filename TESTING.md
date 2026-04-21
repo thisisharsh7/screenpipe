@@ -26,6 +26,7 @@ these break CONSTANTLY. any change to `window_api.rs`, `main.rs` shortcuts, acti
 commits that broke this area: `0752ea59`, `d89c5f14`, `4a64fd1a`, `fa591d6e`, `8706ae73`, `6d44af13`, `b6ff1bf7`, `09a18070`
 
 - [ ] **overlay shortcut on fullscreen space** — press shortcut while a fullscreen app (e.g., Chrome fullscreen) is active. overlay MUST appear on top.
+- [ ] **space listener + magnify handler** — Verify space change listening and magnification gestures work as expected. (`4514729d2`)
 - [ ] **chat shortcut on fullscreen space** — press chat shortcut while on a fullscreen space. chat panel MUST appear on top. Fixed: panel pre-created at startup, show uses order_front→activate order.
 - [ ] **chat shortcut on normal desktop** — chat appears, receives keyboard focus, can type immediately.
 - [ ] **overlay toggle on/off** — press shortcut twice. first shows, second hides. no "ghost" window left behind.
@@ -88,8 +89,11 @@ commits that broke this area: `0752ea59`, `7562ec62`, `2a2bd9b5`, `f2f7f770`, `5
 
 ### 3. monitor plug/unplug
 
-commits: `28e5c247`
+commits: `28e5c247`, `886b5c05d`, `637eb195f`, `42ada7d98`
 
+- [ ] **focus-aware capture** — Toggle "focused monitor only" in recording settings. Verify only the monitor with current mouse/keyboard focus is recorded. (`886b5c05d`)
+- [ ] **--monitor-id override** — (CLI) use `--monitor-id` and verify it overrides the default `--use-all-monitors=true`. (`637eb195f`)
+- [ ] **event-driven monitor watcher** — verify monitor changes are detected instantly via event-driven watcher (no polling lag). (`42ada7d98`)
 - [ ] **unplug external monitor while recording** — recording continues on remaining monitor(s). no crash. log shows "Monitor X disconnected".
 - [ ] **plug in external monitor while recording** — new monitor is detected within 5 seconds. recording starts on it. log shows "Monitor X reconnected".
 - [ ] **unplug and replug same monitor** — recording resumes. same monitor ID reused. no duplicate recording tasks.
@@ -103,6 +107,7 @@ commits: `28e5c247`
 
 ### 4. audio device handling
 
+- [ ] **CoreAudio Process Tap (Experimental)** — Opt-in to experimental CoreAudio Process Tap. Verify system audio capture works (macOS 14.4+). (`d4adec162`, `9b6d80237`)
 - [ ] **default audio device** — with "follow system default", recording uses whatever macOS says is default.
 - [ ] **plug in USB headset** — if set to follow defaults and macOS switches to headset, recording follows.
 - [ ] **unplug USB headset** — recording falls back to built-in mic/speakers. no crash. no 30s timeout errors.
@@ -308,8 +313,10 @@ commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`
 
 ### 10. AI presets & settings
 
-commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`
+commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`, `71baa0387`, `1c0c95b20`
 
+- [ ] **hot-swap pi model** — Change pi model in settings while a chat is active. Verify the model swaps without killing the subprocess. (`71baa0387`)
+- [ ] **connected integrations @mentions** — In chat filter popover, type `@` and verify connected integrations are surfaced as mentions. (`1c0c95b20`)
 - [ ] **Ollama not running** — creating an Ollama preset shows free-text input fields (not stuck loading). user can type model name manually (`8a5f51dd`).
 - [ ] **custom provider preset** — user can add a custom API endpoint. model name is free-text input with optional autocomplete.
 - [ ] **settings survive restart** — change any setting, quit, relaunch. setting is preserved.
@@ -856,8 +863,11 @@ commits: `f6c21a022`, `31e67ae1c`, `8d0a5348d`, `b1c30e99b`
 
 ### 27. Connections (Multi-instance & New Services)
 
-commits: `c8769545b`, `4f522325b`, `54000c295`
+commits: `c8769545b`, `4f522325b`, `54000c295`, `9406b28f5`, `2b040ea9a`, `e35be21f9`
 
+- [ ] **QuickBooks & Google Sheets OAuth** — Verify authorization flow for QuickBooks Online and Google Sheets. (`9406b28f5`)
+- [ ] **Fireflies, Otter, and Leexi connectors** — Verify these new connectors are functional and have real logos. (`2b040ea9a`, `8a5485c56`)
+- [ ] **Google Sheets OAuth scope** — Verify broader scope for Google Sheets works (needed for write access). (`e35be21f9`)
 - [ ] **Multi-instance connections** — Add two different accounts for the same service (e.g., two Slack workspaces). Verify both work independently. (`c8769545b`)
 - [ ] **Post-install connection modal** — After installing a pipe, verify the connection modal appears if the pipe requires a service connection. (`c8769545b`)
 - [ ] **New service connections** — Verify Brex, Stripe, Sentry, Vercel, Pipedrive, Intercom, and Limitless connections can be authorized and sync data. (`4f522325b`, `54000c295`)
