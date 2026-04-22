@@ -1609,14 +1609,15 @@ pub fn advance_state(
                     None,
                 )
             } else {
-                let timeout = if is_browser {
+                let is_alive = scan_results.iter().any(|r| r.app_name == app);
+                let timeout = if is_alive {
                     ENDING_TIMEOUT_BROWSER
                 } else {
                     ENDING_TIMEOUT
                 };
                 info!(
-                    "meeting v2: Active -> Ending (no controls, app={}, id={}, grace={:?})",
-                    app, meeting_id, timeout
+                    "meeting v2: Active -> Ending (no controls, app={}, id={}, alive={}, grace={:?})",
+                    app, meeting_id, is_alive, timeout
                 );
                 (
                     MeetingState::Ending {
@@ -1624,7 +1625,7 @@ pub fn advance_state(
                         app,
                         started_at,
                         since: Instant::now(),
-                        is_browser,
+                        is_browser: is_alive,
                     },
                     None,
                 )
@@ -1638,7 +1639,8 @@ pub fn advance_state(
             since,
             is_browser,
         } => {
-            let timeout = if is_browser {
+            let is_alive = scan_results.iter().any(|r| r.app_name == app);
+            let timeout = if is_alive && is_browser {
                 ENDING_TIMEOUT_BROWSER
             } else {
                 ENDING_TIMEOUT
@@ -1658,9 +1660,9 @@ pub fn advance_state(
                     },
                     None,
                 )
-            } else if is_browser && has_output_audio {
+            } else if has_output_audio {
                 // Audio output is still active — the user likely just switched
-                // tabs/apps while the meeting continues. Keep alive.
+                // tabs/apps/minimized while the meeting continues. Keep alive.
                 info!(
                     "meeting v2: Ending -> Active (output audio still active, app={}, id={})",
                     app, meeting_id
@@ -2560,11 +2562,7 @@ fn handle_no_apps_running(state: MeetingState) -> (MeetingState, Option<i64>) {
             started_at,
             is_browser,
         } => {
-            let timeout = if is_browser {
-                ENDING_TIMEOUT_BROWSER
-            } else {
-                ENDING_TIMEOUT
-            };
+            let timeout = ENDING_TIMEOUT; // Process is dead, always use short timeout
             if since.elapsed() >= timeout {
                 info!(
                     "meeting v2: Ending -> Idle (timeout={:?}, app={})",
@@ -3129,8 +3127,8 @@ mod tests {
     }
 
     #[test]
-    fn test_native_ending_ignores_output_audio() {
-        // Native app: output audio should NOT prevent ending (controls are reliable)
+    fn test_native_ending_stays_active_with_output_audio() {
+        // Native app: output audio should prevent ending (controls are unreliable when minimized)
         let state = MeetingState::Ending {
             meeting_id: 42,
             app: "Zoom".to_string(),
@@ -3143,11 +3141,17 @@ mod tests {
         let results: Vec<ScanResult> = vec![];
         let (new_state, action) = advance_state(state, &results, true);
 
-        assert!(matches!(new_state, MeetingState::Idle));
-        assert!(matches!(
-            action,
-            Some(StateAction::EndMeeting { meeting_id: 42 })
-        ));
+        assert!(
+            matches!(
+                new_state,
+                MeetingState::Active {
+                    is_browser: false,
+                    ..
+                }
+            ),
+            "native meeting should stay Active when output audio is flowing"
+        );
+        assert!(action.is_none());
     }
 
     // ── Edge case tests ────────────────────────────────────────────────
