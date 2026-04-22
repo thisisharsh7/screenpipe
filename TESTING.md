@@ -65,6 +65,7 @@ commits that broke this area: `0752ea59`, `d89c5f14`, `4a64fd1a`, `fa591d6e`, `8
 - [ ] **Notification panel order_out** — verify no ghost clicks after hiding notification/shortcut panels. (`32fed7c8c`)
 - [ ] **Excluded windows from screenshots** — Verify that windows specified in the ignore list are correctly excluded from full-monitor screenshots taken via ScreenCaptureKit (SCK). (`61212c429`)
 - [ ] **Swift overlay meeting toggle** — Verify that the meeting toggle in the Swift-based overlay works correctly and reflects the recording state. (`e5e955aa6`)
+- [ ] **Shortcut reminder scaling** — Verify shortcut reminder doesn't double-scale on medium/large settings. (`e154270af`)
 
 
 ### 2. dock icon & tray icon (macOS)
@@ -100,6 +101,7 @@ commits: `28e5c247`
 - [ ] **resolution change (e.g., clamshell mode)** — closing MacBook lid with external monitor. recording continues on external.
 - [ ] **queue stats after unplug** — check logs. no queue stats for disconnected monitor after disconnect.
 - [ ] **--use-all-monitors flag override** — Verify that the `--use-all-monitors` CLI flag correctly overrides tier-based defaults (e.g., if a tier defaults to a single monitor, the flag should still enable all monitors). (`bd5b94328`)
+- [ ] **Monitor ID override** — `--monitor-id` correctly overrides `--use-all-monitors=true`. (`637eb195f`)
 
 ### 4. audio device handling
 
@@ -196,6 +198,8 @@ commits: `6dd5d98e`, `831ad258`
 - [ ] **reduced CPU spikes in vision/capture pipeline** — Actively browse and use applications, verifying that CPU spikes in the vision/capture pipeline are significantly reduced. (`8f7294e6`)
 - [ ] **OCR bounding boxes normalized on Windows/Linux** — On Windows and Linux, verify that OCR bounding boxes are correctly normalized to the 0-1 range, ensuring consistent text overlay and interaction. (`aba74513`)
 - [ ] **Debounced monitor capture errors** — Simulate transient monitor capture errors. Verify that these errors are debounced and do not lead to excessive error logging or app crashes.
+- [ ] **Focus-aware capture** — Enable "Only record focused monitor" and verify only the active monitor is captured. (`886b5c05d`)
+- [ ] **Idle monitor capture release** — Verify monitor capture streams are released when idle to save resources (halves replayd/WGC cost). (`6baba5cd5`)
 
 ### 6. Battery Saver Mode
 
@@ -328,6 +332,10 @@ commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`
 - [ ] **standalone settings page** — Verify that clicking settings in the tray menu opens a standalone `/settings` page instead of a modal overlay. (`ec2a5789e`)
 - [ ] **optional API auth** — Enable API auth in settings (or via `--api-auth`). Verify that remote access to the API requires the configured token. (`09f18141a`, `cfc1a74e1`)
 - [ ] **privacy settings reordering** — Verify that the Security section appears first in the Privacy settings tab. (`4718785b6`)
+- [ ] **Click-to-edit chat messages** — In chat, click a message to edit it. (`e7d14bd22`)
+- [ ] **Chat "Try again" button** — When model returns empty response, verify "Try again" button appears and works. (`ca5ef297e`)
+- [ ] **Hot-swap pi model** — Change pi model in presets. Verify it swaps without killing subprocess. (`71baa0387`)
+- [ ] **Quota warnings** — Verify warning appears when near daily quota on weighted models. (`766124432`)
 - [ ] **password field filtering** — Verify that password fields are skipped in the accessibility tree and not stored as OCR/text. (`8159641f5`, `d39e42e5b`)
 - [ ] **browser extension popup filtering** — Verify that browser extension popups (like Bitwarden) are filtered and not captured in the accessibility tree or as black frames. (`52d20987a`, `449ae7a68`, `931db40b6`)
 
@@ -429,6 +437,8 @@ commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`
 - [ ] **Keyword search accessibility** — Keyword search should find content within accessibility-only frames and utilize `frames_fts` for comprehensive accessibility text searching.
 - [ ] **Keyword search logic** — Verify that keyword search SQL correctly uses `OR` instead of `UNION` within `IN()`.
 - [ ] **Search prompt accuracy** — Verify that search prompts are improved to prevent false negatives from over-filtering.
+- [ ] **Keyword flat mode** — Verify keyword flat mode doesn't drop results without text positions. (`ae2e54dcf`)
+- [ ] **Integration @mentions in chat** — Type @ in chat filter/popover to see connected integrations. (`1c0c95b20`)
 
 ### 13. sync & cloud
 
@@ -468,6 +478,7 @@ commits: `eea0c865`, `fe9060db`, `c99c3967`, `aeaa446b`, `5a219688`, `caae1ebc`,
 - [ ] **Windows multi-line pipe prompts** — Multi-line pipe prompts should be preserved on Windows.
 - [ ] **Windows ARM64 support** — On a Windows ARM64 device, verify the app installs and runs correctly. (`d62360bc4`)
 - [ ] **Windows app matching for meetings** — On Windows, verify that meeting detection correctly matches active applications. (`ef39e728d`)
+- [ ] **Windows system root CAs** — Verify bun/node in pipes can access system root CAs (important for corporate proxies/VPNs). (`1a672d283`)
 - [ ] **Alt+S shortcut activates overlay with keyboard focus** — On Windows, press `Alt+S`. Verify that the overlay window appears and immediately receives keyboard focus, allowing immediate typing.
 - [ ] **OcrTextBlock deserialization handles Windows OCR format** — On Windows, verify that `OcrTextBlock` deserialization correctly handles the specific Windows OCR format. (`c49ccb55`)
 - [ ] **populate accessibility tree bounds for text overlay on Windows** — On Windows, verify that accessibility tree bounds are correctly populated for text overlay, ensuring accurate positioning and interaction. (`4d20803a`)
@@ -701,6 +712,7 @@ commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`,
 - [ ] **Pipe user_token passthrough** — Verify that the `user_token` is correctly passed to Pi pre-configuration so pipes use the screenpipe provider.
 - [ ] **Default AI model ID** — Verify that the default AI model ID does not contain outdated date suffixes.
 - [ ] **Move provider/model flags** — `--provider` and `--model` flags should be correctly moved before `-p prompt` in `pi spawn` commands.
+- [ ] **Per-machine favorites** — Verify pipe favorites are per-machine, and star toggle + filter chip work. (`e1a18adb9`)
 
 ### 18. Admin / Team features
 
@@ -722,6 +734,7 @@ commits: `fc830b43`, `f54d3e0d`
 - [ ] **PII scrubbing** — Ensure that PII (Personally Identifiable Information) is scrubbed from logs.
 - [ ] **Phone regex PII scrubbing preservation** — Verify phone numbers are scrubbed but accessibility bounds (which look like numbers) are NOT mangled. (`08feb4df5`)
 - [ ] **Phone regex PII scrubbing** — After generating some PII-containing data (e.g., typing phone numbers), review logs to ensure that the phone regex correctly scrubs PII and does not over-match bare digit sequences.
+- [ ] **Screenpipe debug a11y-walk** — Run `screenpipe debug a11y-walk` and verify it shows accessibility tree. (`3ea787f58`)
 
 ### 20. Vault Lock (Encryption at rest)
 
@@ -863,6 +876,9 @@ commits: `c8769545b`, `4f522325b`, `54000c295`
 - [ ] **New service connections** — Verify Brex, Stripe, Sentry, Vercel, Pipedrive, Intercom, and Limitless connections can be authorized and sync data. (`4f522325b`, `54000c295`)
 - [ ] **Multi-instance OAuth for GitHub and Notion** — Verify that multi-instance OAuth works for GitHub and Notion, including fetching identity after token exchange. (`5d6ee5da3`)
 - [ ] **Glean icon in connections grid** — Verify that the Glean icon is displayed in the connections grid. (`ec6374e1d`)
+- [ ] **Auto-refresh OAuth tokens** — Verify expired OAuth tokens (Google Docs, QuickBooks, etc.) auto-refresh via generic proxy. (`d7835eabb`)
+- [ ] **Google Docs connection** — Verify Google Docs connection works and captures data. (`dbf451f34`)
+- [ ] **QuickBooks & Google Sheets connections** — Verify these connections work and capture data. (`9406b28f5`)
 
 ### 28. Deployment & Remote Management
 
