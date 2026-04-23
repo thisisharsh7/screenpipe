@@ -44,7 +44,7 @@ fn create_speech_segment(
     let start_f64 = start * (sample_rate as f64);
     let end_f64 = end * (sample_rate as f64);
 
-    let start_idx = start_f64.min((samples.len() - 1600) as f64) as usize;
+    let start_idx = start_f64.min(samples.len().saturating_sub(1600) as f64) as usize;
     let mut end_idx = end_f64.min(samples.len() as f64) as usize;
 
     // TODO: Why is this empty sometimes?
