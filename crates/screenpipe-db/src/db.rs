@@ -128,9 +128,9 @@ impl Drop for ImmediateTx {
                         }
                         Err(e) => {
                             // ROLLBACK failed — connection is likely broken.
-                            // Detach as last resort so it doesn't poison the pool.
-                            warn!("ImmediateTx rollback failed ({}), detaching connection", e);
-                            let _raw = conn.detach();
+                            // We do NOT detach because detaching permanently reduces the pool size.
+                            // Dropping returns it to the pool where it will be recovered on next use.
+                            warn!("ImmediateTx rollback failed ({}), returning broken connection to pool", e);
                         }
                     }
                     drop(permit); // Release the write permit so other writers can proceed
@@ -541,10 +541,9 @@ impl DatabaseManager {
                         }
                         Err(rb_err) => {
                             warn!(
-                                "ROLLBACK failed ({}), detaching connection as last resort",
+                                "ROLLBACK failed ({}), returning broken connection to pool",
                                 rb_err
                             );
-                            let _raw = conn.detach();
                         }
                     }
                     last_error = Some(e);

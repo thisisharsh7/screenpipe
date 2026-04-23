@@ -481,8 +481,7 @@ async fn execute_batch(
                         drop(conn);
                     }
                     Err(rb_err) => {
-                        warn!("write_queue: ROLLBACK failed ({}), detaching connection as last resort", rb_err);
-                        let _raw = conn.detach();
+                        warn!("write_queue: ROLLBACK failed ({}), returning broken connection to pool", rb_err);
                     }
                 }
                 last_error = Some(e);
@@ -546,8 +545,7 @@ async fn execute_batch(
     // COMMIT or ROLLBACK
     if any_fatal {
         if let Err(e) = sqlx::query("ROLLBACK").execute(&mut *conn).await {
-            warn!("write_queue: ROLLBACK failed: {}, detaching connection", e);
-            let _raw = conn.detach();
+            warn!("write_queue: ROLLBACK failed: {}, returning connection to pool", e);
         }
         // All results become errors on rollback
         for result in results.iter_mut() {
@@ -559,8 +557,7 @@ async fn execute_batch(
         warn!("write_queue: COMMIT failed: {}", e);
         let msg = e.to_string().to_lowercase();
         if !msg.contains("no transaction is active") {
-            warn!("write_queue: detaching connection due to commit failure");
-            let _raw = conn.detach();
+            warn!("write_queue: commit failed, returning connection to pool");
         }
         // All results become the commit error
         for pw in batch.drain(..) {
