@@ -1638,11 +1638,15 @@ pub fn advance_state(
             since,
             is_browser,
         } => {
-            let timeout = if is_browser {
+            // Process-alive keep-alive: if the meeting app process is still running,
+            // we use a longer timeout (5min). Controls disappear during minification/multitasking.
+            let app_is_alive = scan_results.iter().any(|r| r.app_name == app);
+            let timeout = if is_browser || app_is_alive {
                 ENDING_TIMEOUT_BROWSER
             } else {
                 ENDING_TIMEOUT
             };
+
             if let Some(result) = best_active {
                 info!(
                     "meeting v2: Ending -> Active (controls reappeared, app={}, id={})",
@@ -1658,7 +1662,7 @@ pub fn advance_state(
                     },
                     None,
                 )
-            } else if is_browser && has_output_audio {
+            } else if has_output_audio && (is_browser || app_is_alive) {
                 // Audio output is still active — the user likely just switched
                 // tabs/apps while the meeting continues. Keep alive.
                 info!(
@@ -3129,8 +3133,8 @@ mod tests {
     }
 
     #[test]
-    fn test_native_ending_ignores_output_audio() {
-        // Native app: output audio should NOT prevent ending (controls are reliable)
+    fn test_native_ending_ignores_output_audio_if_process_dead() {
+        // Native app process dead (not in results): output audio should NOT prevent ending
         let state = MeetingState::Ending {
             meeting_id: 42,
             app: "Zoom".to_string(),
@@ -3148,6 +3152,33 @@ mod tests {
             action,
             Some(StateAction::EndMeeting { meeting_id: 42 })
         ));
+    }
+
+    #[test]
+    fn test_native_ending_stays_active_with_output_audio_if_alive() {
+        // Native app alive but no call controls: output audio prevents ending
+        let state = MeetingState::Ending {
+            meeting_id: 42,
+            app: "Zoom".to_string(),
+            started_at: Utc::now(),
+            since: Instant::now(),
+            is_browser: false,
+        };
+        let results = vec![make_scan_result("Zoom", false, 0)];
+        let (new_state, action) = advance_state(state, &results, true);
+
+        assert!(
+            matches!(
+                new_state,
+                MeetingState::Active {
+                    meeting_id: 42,
+                    is_browser: false,
+                    ..
+                }
+            ),
+            "native meeting should stay Active when output audio is flowing and process is alive"
+        );
+        assert!(action.is_none());
     }
 
     // ── Edge case tests ────────────────────────────────────────────────
