@@ -298,6 +298,7 @@ commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`
 - [ ] **Data directory setting location** — Verify that the data directory setting is now located in the "Storage" tab of the settings menu. (`0d3ffe30a`)
 - [ ] **store.bin encryption** — Enable "Encrypt store.bin" in settings (Privacy > Security). Verify that `store.bin` is encrypted and correctly decrypted on startup using the OS keychain. (`143875207`, `aee1cd2b5`, `85ecd7935`)
 - [ ] **graceful keychain denial** — On macOS, deny keychain access for store encryption. Verify the app handles it gracefully and falls back to unencrypted store if necessary or warns the user. (`b9c01b916`)
+- [ ] **DB initialization retry** — Verify that the application retries database initialization on lock contention, preventing startup crashes. (`7801c04dd`)
 
 - [ ] **slow DB insert warning** — check logs. "Slow DB batch insert" warnings should be <1s in normal operation. >3s indicates contention.
 - [ ] **concurrent DB access** — UI queries + recording inserts happening simultaneously. no "database is locked" errors.
@@ -323,6 +324,8 @@ commits: `8a5f51dd`, `0b0d8090`, `7e58564e`, `2522a7e2`, `f3e55dbc`, `79f2913f`
 - [ ] **Sidebar text visibility in Auto theme** — On macOS, switch between Light, Dark, and Auto system theme modes. Verify that sidebar text remains visible and legible in all modes. (`16d38570d`)
 - [ ] **Billing page links to website** — Verify that the in-app billing page correctly links to the *new* website billing page.
 - [ ] **Non-pro subscriber Whisper fallback** — As a non-pro subscriber, verify that audio transcription defaults to `whisper-large-v3-turbo-quantized` and functions correctly.
+- [ ] **API key persistence (WS auth)** — Verify that the IPC-loaded API key is not wiped when `settings.apiKey` is empty, ensuring consistent authentication. (`ce8374893`)
+- [ ] **SecretStore token storage** — Verify that tokens are NOT written to plaintext when a SecretStore (OS keychain) is available, preventing dual-writing. (`299f8ab2b`)
 - [ ] **Pi restart on preset switch** — Switch between different AI presets. Verify that the Pi agent restarts if required by the new preset.
 - [ ] **Web search disabled for non-cloud providers** — When using a non-cloud AI provider, verify that web search functionality is correctly disabled.
 - [ ] **Credit balance in billing UI and errors** — Verify that the billing UI accurately displays the credit balance and clearly differentiates between `credits_exhausted` and other LLM-related errors.
@@ -851,6 +854,7 @@ commits: `cf2dcd5f8`, `ad1d00d8f`, `6f623b30a`, `aaf031169`
 - [ ] **Restart notifications toggle** — Toggle "restart notifications" in settings. Verify notifications only appear when enabled. (`f82b4f350`)
 - [ ] **Notification text selection** — Verify that text can be selected in notification inbox messages. (`3449197c3`)
 - [ ] **macOS notification "Open" click** — Click "Open" on a macOS system notification. Verify it correctly brings the Screenpipe window to the front. (`3e86cebb0`)
+- [ ] **macOS notification URL actions** — Click a URL-based action on a macOS native notification when the overlay is NOT mounted. Verify the URL opens correctly. (`7fdcd2054`)
 
 ### 26. Onboarding & Fleet UX
 
@@ -871,6 +875,8 @@ commits: `c8769545b`, `4f522325b`, `54000c295`
 - [ ] **Glean icon in connections grid** — Verify that the Glean icon is displayed in the connections grid. (`ec6374e1d`)
 - [ ] **Google Docs connection & Pro gate** — Verify that Google Docs connection works and that the "Pro required" gate correctly appears for non-pro users on the connect button. (`9835b09d8`, `dbf451f34`, `dda16447c`, `e3a2be5cb`)
 - [ ] **Bitrix24 CRM integration** — Verify that Bitrix24 CRM connection can be authorized and syncs data correctly. (`55026df56`)
+- [ ] **Loops, Resend, and Supabase integrations** — Verify that Loops, Resend, and Supabase connections can be authorized and sync data correctly. (`ea454f324`)
+- [ ] **Microsoft 365 and Teams integrations** — Verify that Microsoft 365 and Teams connections can be authorized via Microsoft Graph OAuth and sync data. (`635c32347`, `42d47e191`)
 - [ ] **OAuth auto-refresh** — Verify that expired OAuth tokens for generic proxy connections (like Google, Bitrix24) are automatically refreshed. (`d7835eabb`)
 
 ### 28. Deployment & Remote Management
@@ -882,3 +888,7 @@ commits: `c6a73b17e`, `945b687ec`
 ### 29. Browser Extension
 
 - [ ] **Browser extension token auth** — Open the browser extension options page. Verify that token-based authentication works and that it can successfully connect to the Screenpipe API. (`be14de544`)
+
+### 30. CLI
+
+- [ ] **CLI auth token persistence** — Run `screenpipe login`. Verify that the auth token is written to the top-level `settings.user` object, ensuring the desktop app can read it. (`fd2ddb771`)
