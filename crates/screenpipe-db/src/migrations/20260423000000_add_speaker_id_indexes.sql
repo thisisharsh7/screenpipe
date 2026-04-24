@@ -21,6 +21,24 @@
 --    AUTOMATIC PARTIAL COVERING INDEX rebuild. This column is referenced
 --    in WHERE / JOIN clauses across every diarization, similarity, and
 --    centroid lookup path; not having an index here is pure overhead.
+-- Re-create speaker_embeddings in case the 2024 migration somehow missed it
+-- (fixes "no such table: main.speaker_embeddings" crash on boot)
+CREATE TABLE IF NOT EXISTS speakers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    metadata JSON
+);
+
+CREATE TABLE IF NOT EXISTS speaker_embeddings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    embedding FLOAT[512] NOT NULL
+    check(
+      typeof(embedding) == 'blob'
+      and vec_length(embedding) == 512
+    ),
+    speaker_id INTEGER REFERENCES speakers(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_speaker_embeddings_speaker_id
   ON speaker_embeddings(speaker_id);
 
