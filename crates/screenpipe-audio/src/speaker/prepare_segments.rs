@@ -100,7 +100,7 @@ pub async fn prepare_segments(
 
     let (tx, rx) = tokio::sync::mpsc::channel(100);
     if !audio_frames.is_empty() && threshold_met {
-        if segmentation_model_path.is_none() || embedding_extractor.is_none() {
+        if segmentation_model_path.map_or(true, |p| !p.exists()) || embedding_extractor.is_none() {
             let mut fallback_segment = Vec::new();
             fallback_segment.extend_from_slice(&audio_data);
 
