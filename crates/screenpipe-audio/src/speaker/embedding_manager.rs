@@ -35,14 +35,24 @@ impl EmbeddingManager {
     pub fn search_speaker(&mut self, embedding: Vec<f32>, threshold: f32) -> Option<usize> {
         let embedding_array = Array1::from_vec(embedding);
         let mut best_speaker_id = None;
-        let mut best_similarity = threshold;
+        let mut max_similarity = f32::MIN;
 
         for (&speaker_id, speaker_embedding) in &self.speakers {
             let similarity = Self::cosine_similarity(&embedding_array, speaker_embedding);
-            if similarity > best_similarity {
+            if similarity > max_similarity {
+                max_similarity = similarity;
                 best_speaker_id = Some(speaker_id);
-                best_similarity = similarity;
             }
+        }
+
+        if max_similarity <= threshold {
+            tracing::debug!(
+                "best local speaker similarity: {:.2} (threshold: {:.2}, distance: {:.2})", 
+                max_similarity, 
+                threshold,
+                1.0 - max_similarity
+            );
+            best_speaker_id = None;
         }
 
         match best_speaker_id {

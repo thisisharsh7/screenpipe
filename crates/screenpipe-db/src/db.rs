@@ -1393,45 +1393,50 @@ impl DatabaseManager {
         &self,
         embedding: &[f32],
     ) -> Result<Option<Speaker>, SqlxError> {
-        let speaker_threshold = 0.55;
+        let speaker_threshold = 0.55_f32;
         let bytes: &[u8] = embedding.as_bytes();
 
         // First try matching against stored embeddings (up to 10 per speaker)
-        let speaker: Option<Speaker> = sqlx::query_as(
-            "SELECT id, name, metadata
-             FROM speakers
-             WHERE id = (
-                 SELECT speaker_id
-                 FROM speaker_embeddings
-                 WHERE vec_distance_cosine(embedding, vec_f32(?1)) < ?2
-                 ORDER BY vec_distance_cosine(embedding, vec_f32(?1))
-                 LIMIT 1
-             )",
+        let closest_stored: Option<(i64, String, String, f32)> = sqlx::query_as(
+            "SELECT s.id, s.name, s.metadata, vec_distance_cosine(se.embedding, vec_f32(?1)) as distance
+             FROM speaker_embeddings se
+             JOIN speakers s ON s.id = se.speaker_id
+             ORDER BY distance ASC
+             LIMIT 1"
         )
         .bind(bytes)
-        .bind(speaker_threshold)
         .fetch_optional(&self.pool)
         .await?;
 
-        if speaker.is_some() {
-            return Ok(speaker);
+        if let Some((id, name, metadata, distance)) = closest_stored {
+            if distance < speaker_threshold {
+                return Ok(Some(Speaker { id, name, metadata }));
+            } else {
+                tracing::debug!("closest stored speaker embedding distance: {:.2} (threshold: {:.2})", distance, speaker_threshold);
+            }
         }
 
         // Fallback: match against speaker centroids (running average embeddings)
-        let speaker = sqlx::query_as(
-            "SELECT id, name, metadata
+        let closest_centroid: Option<(i64, String, String, f32)> = sqlx::query_as(
+            "SELECT id, name, metadata, vec_distance_cosine(centroid, vec_f32(?1)) as distance
              FROM speakers
              WHERE centroid IS NOT NULL
-               AND vec_distance_cosine(centroid, vec_f32(?1)) < ?2
-             ORDER BY vec_distance_cosine(centroid, vec_f32(?1))
+             ORDER BY distance ASC
              LIMIT 1",
         )
         .bind(bytes)
-        .bind(speaker_threshold)
         .fetch_optional(&self.pool)
         .await?;
 
-        Ok(speaker)
+        if let Some((id, name, metadata, distance)) = closest_centroid {
+            if distance < speaker_threshold {
+                return Ok(Some(Speaker { id, name, metadata }));
+            } else {
+                tracing::debug!("closest speaker centroid distance: {:.2} (threshold: {:.2})", distance, speaker_threshold);
+            }
+        }
+
+        Ok(None)
     }
 
     /// Add an embedding to a speaker's stored embeddings (up to max_stored).
