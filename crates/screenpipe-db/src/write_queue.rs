@@ -1326,8 +1326,9 @@ async fn execute_single_write(
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 fn send_error_to_all(batch: &mut Vec<PendingWrite>, error: sqlx::Error) {
+    let err_str = error.to_string();
     for pw in batch.drain(..) {
-        let _ = pw.respond.send(Err(sqlx::Error::PoolTimedOut));
+        let _ = pw.respond.send(Err(sqlx::Error::Protocol(err_str.clone().into())));
     }
     // Log the original error that caused the batch failure
     error!("write_queue: batch failed: {}", error);
@@ -1365,6 +1366,27 @@ fn is_busy_error(e: &sqlx::Error) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_send_error_to_all_propagates_actual_error() {
+        let (tx, mut rx) = tokio::sync::oneshot::channel();
+        let mut batch = vec![PendingWrite {
+            op: WriteOp::InsertAudioChunk { file_path: "test".into(), timestamp: None },
+            respond: tx,
+        }];
+        
+        let err = sqlx::Error::RowNotFound;
+        send_error_to_all(&mut batch, err);
+        
+        assert!(batch.is_empty());
+        let received = rx.try_recv().unwrap();
+        match received {
+            Err(sqlx::Error::Protocol(msg)) => {
+                assert!(msg.to_string().contains("no rows returned by a query"));
+            }
+            _ => panic!("Expected Protocol error with original message"),
+        }
+    }
     use sqlx::sqlite::SqlitePoolOptions;
 
     async fn setup_test_db() -> (Pool<Sqlite>, Arc<Semaphore>) {
