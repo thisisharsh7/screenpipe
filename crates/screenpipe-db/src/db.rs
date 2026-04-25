@@ -6622,12 +6622,12 @@ LIMIT ? OFFSET ?
         if events.is_empty() {
             return Ok(0);
         }
-        let mut count = 0;
-        for event in events {
-            self.insert_ui_event(event).await?;
-            count += 1;
+        let futures = events.iter().map(|event| self.insert_ui_event(event));
+        let results = futures::future::join_all(futures).await;
+        for res in results {
+            res?;
         }
-        Ok(count)
+        Ok(events.len())
     }
 
     // ============================================================================
