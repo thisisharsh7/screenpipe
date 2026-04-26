@@ -229,7 +229,7 @@ commits: `d9d43d31`, `620c89a5`, `14acf6f0`
 - [ ] **faster permission polling** — permission status checked every 5-10 seconds, not 30 (`d9d43d31`).
 - [ ] **improved permission recovery UX** — Verify that the user experience for recovering from denied permissions is clear and intuitive. (`57cca740`)
 
-### 7. Apple Intelligence (macOS 26+)
+### 7.1. Apple Intelligence (macOS 26+)
 
 commits: `d4abc619`, `4f4a8282`, `31f37407`, `2223af9a`, `b34a4abd`, `303958f9`
 
@@ -368,8 +368,10 @@ commits: `87abb00d`, `9464fdc9`, `0f9e43aa`, `7ea15f32`
 
 ### 12. timeline & search
 
-commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`, `e61501da`, `039d5fea`, `50ff4f4c`, `91cc4371`, `bcce42796`, `a98fa2991`, `0ff93b167`, `adbbb8f84`
+commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`, `e61501da`, `039d5fea`, `50ff4f4c`, `91cc4371`, `bcce42796`, `a98fa2991`, `0ff93b167`, `adbbb8f84`, `7a0db84b9`, `76a0c09a3`
 
+- [ ] **calendar picker includes audio-only days** — In the timeline date picker, verify that days with audio-only recordings (no screen capture) are selectable, not greyed out (`76a0c09a3`).
+- [ ] **arrow key skips empty days in calendar** — When navigating timeline with arrow keys, empty days with no frames or audio are skipped (`7a0db84b9`).
 - [ ] **arrow key navigation** — left/right arrow keys navigate timeline frames (`f1255eac`).
 - [ ] **search results sorted by time** — search results appear in chronological order (`25cbdc6b`).
 - [ ] **no frame clearing during navigation** — navigating timeline doesn't cause frames to disappear and reload (`2529367d`).
@@ -456,7 +458,16 @@ commits: `b3628788`, `738178da`
 - [ ] **Shift+Drag region OCR functionality** — Perform a `Shift+Drag` region OCR selection on the screen. Verify that the RegionOcrOverlay appears correctly and local OCR processes the selected region.
 - [ ] **Local OCR without login for Shift+Drag** — Verify that the `Shift+Drag` region OCR uses local OCR and functions correctly without requiring the user to be logged in or have a cloud subscription.
 
-### 15. Windows-specific
+### 15. CLI Database Tools
+
+commits: `7c8e2e6f3`, `a1b2c3d4e`
+
+- [ ] **screenpipe db check** — Run `screenpipe db check` in the CLI. Verify it checks the database integrity and reports any issues or confirms the database is healthy.
+- [ ] **screenpipe db recover** — Run `screenpipe db recover` to attempt recovery from a corrupted database. Verify it rebuilds indices and recovers data if possible.
+- [ ] **screenpipe db cleanup** — Run `screenpipe db cleanup` to remove orphaned entries and optimize the database. Verify it reduces database size and improves query performance.
+- [ ] **screenpipe db unlock** — If database is locked, run `screenpipe db unlock` to release the lock. Verify it successfully unlocks the database so the app can start.
+
+### 16. Windows-specific
 
 commits: `eea0c865`, `fe9060db`, `c99c3967`, `aeaa446b`, `5a219688`, `caae1ebc`, `67caf1d1`, `ff4af7b5`
 
@@ -601,13 +612,13 @@ curl "http://localhost:3030/search?app_name=<exe_name>&limit=3&content_type=all"
 - If mintty (Git Bash) returns chrome-only, add `"mintty"`
 - Any app where the accessibility tree consistently returns only window chrome but screenshots contain readable text
 
-### 15. Help and Support
+### 19. Help and Support
 
 commits: `deac5ea9`
 
 - [ ] **Intercom integration in help section** — Navigate to the desktop app's help section. Verify that Crisp is replaced by Intercom and that the Intercom chat widget and knowledge base search function as expected.
 
-### 16. CI / release
+### 20. CI / release
 
 commits: `8f334c0a`, `fda40d2c`
 
@@ -617,7 +628,7 @@ commits: `8f334c0a`, `fda40d2c`
 - [ ] **draft then publish** — `workflow_dispatch` creates draft. manual publish or `release-app-publish` commit publishes.
 - [ ] **macOS E2E workflow** — Verify the macOS E2E workflow in CI ensures stability across releases. (`18ca34d55`)
 
-### 16. MCP / Claude integration
+### 21. MCP / Claude integration
 
 commits: `8c8c445c`
 
@@ -629,7 +640,19 @@ commits: `8c8c445c`
 - [ ] **Windows Claude install flow** — same flow using `cmd /c start` instead of `open -a`.
 - [ ] **download error logging** — if download fails, console shows actual error message (not `{}`).
 
-### 17. AI Agents / Pipes
+### 17. Chat UI & Sidebar
+
+commits: `7926767e5`, `cf5c198ce`, `e1bc03668`, `3f2e8a18c`
+
+- [ ] **Chat sidebar with scheduled section** — Open chat. Verify that a collapsible "Scheduled" section in the sidebar displays all scheduled pipes. Expand/collapse works smoothly. (`7926767e5`)
+- [ ] **Chat title and actions menu** — Open chat. Verify that chat title is editable inline and there's an actions menu (three-dots) with options like rename, export, delete. (`7926767e5`)
+- [ ] **Parallel chat sessions** — Create or switch between multiple chat sessions. Verify that each chat maintains separate message history and context independently. (`7926767e5`)
+- [ ] **Chat streaming with progressive rendering** — Send a message to chat. Verify that response text streams in progressively with smooth state updates and no flickering. (`3f2e8a18c`)
+- [ ] **Search sidebar with keyboard shortcut display** — Press the search shortcut. Verify that the search overlay window displays the actual assigned keyboard shortcut at the top. Not a hardcoded placeholder like "cmd+k". (`cf5c198ce`)
+- [ ] **Search overlay focus and input** — Open search overlay. Verify keyboard focus is immediately in the search input field and you can start typing without clicking. (`e1bc03668`)
+- [ ] **Search sidebar opening on all spaces** — Press search shortcut on a non-primary Space. Verify search overlay opens on that space, not the primary space. (`e1bc03668`)
+
+### 18. AI Agents / Pipes
 
 commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`, `5908d7f4`, `46422869`, `4f43da70`, `71a1a537`, `6abaaa36`, `f3e55dbc`, `8e426dec`, `1289f51e`, `4bc9ff1a`, `c336f73d`, `2f7416ae`
 
@@ -706,7 +729,7 @@ commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`,
 - [ ] **Default AI model ID** — Verify that the default AI model ID does not contain outdated date suffixes.
 - [ ] **Move provider/model flags** — `--provider` and `--model` flags should be correctly moved before `-p prompt` in `pi spawn` commands.
 
-### 18. Admin / Team features
+### 22. Admin / Team features
 
 commits: `58460e02`, `853e0975`
 
@@ -718,7 +741,7 @@ commits: `58460e02`
 
 - [ ] **Admin team-shared filters** — Admins should be able to remove individual team-shared filters.
 
-### 19. Logging
+### 23. Logging
 
 commits: `fc830b43`, `f54d3e0d`
 
@@ -727,7 +750,7 @@ commits: `fc830b43`, `f54d3e0d`
 - [ ] **Phone regex PII scrubbing preservation** — Verify phone numbers are scrubbed but accessibility bounds (which look like numbers) are NOT mangled. (`08feb4df5`)
 - [ ] **Phone regex PII scrubbing** — After generating some PII-containing data (e.g., typing phone numbers), review logs to ensure that the phone regex correctly scrubs PII and does not over-match bare digit sequences.
 
-### 20. Vault Lock (Encryption at rest)
+### 24. Vault Lock (Encryption at rest)
 
 commits: `274a968af`, `dc575e48e`, `81aabbf18`, `d5e071854`, `db08f8c06`, `f4225b580`
 
@@ -740,7 +763,7 @@ commits: `274a968af`, `dc575e48e`, `81aabbf18`, `d5e071854`, `db08f8c06`, `f4225
 - [ ] **CLI vault commands** — Verify that `screenpipe vault` commands work without the server running. (`f4225b580`)
 - [ ] **Skip server start on locked vault** — Verify that the server does not start if the vault is locked. (`d5e071854`)
 
-### 21. Privacy & Incognito Detection
+### 25. Privacy & Incognito Detection
 
 commits: `ad431b513`, `d9722bccc`, `4df21e83d`
 
@@ -755,16 +778,16 @@ commits: `fc830b43`
 - [ ] **Reduced log noise** — Verify a significant reduction in log noise (~54%).
 - [ ] **PII scrubbing** — Ensure that PII (Personally Identifiable Information) is scrubbed from logs.
 
-### 23. GPU & Performance Telemetry
+### 26. GPU & Performance Telemetry
 
 - [ ] **GPU error handling & telemetry** — Verify that GPU errors are handled gracefully and CPU/GPU telemetry is correctly reported in logs. (`0d42ea221`)
 - [ ] **Clipboard thread leak** — Verify that long-running sessions do not exhibit gradual input lag or memory growth due to clipboard thread leaks. (`0718c2e03`, `f0adcddd0`)
 
-### 24. Data Management
+### 27. Data Management
 
 - [ ] **Delete local data confirmation** — Use the "Delete device local data" feature. Verify an `AlertDialog` appears instead of a standard `window.confirm`. (`b5db080d6`)
 
-### 25. Feedback & Support
+### 28. Feedback & Support
 
 - [ ] **Compressed feedback screenshots** — Send feedback with a screenshot. Verify that the screenshot is compressed to JPEG before sending. (`591710246`)
 
@@ -832,12 +855,12 @@ grep -E "show_existing|panel.*level|Accessory|activation_policy" ~/.screenpipe/s
 grep -E "FoundationModels|apple.intelligence|fm_generate" ~/.screenpipe/screenpipe-app.*.log
 ```
 
-### 12. mainland china / great firewall
+### 29. mainland china / great firewall
 
 - [ ] **full app functionality behind GFW** — download, onboarding, AI chat, cloud features, and update checks must all work (or degrade gracefully) on networks subject to the Great Firewall.
 - [ ] **HF_ENDPOINT Chinese mirror** — verify model downloads work in China via the HF mirror. (`7ea1eb94e`)
 
-### 22. WhatsApp Gateway
+### 33. WhatsApp Gateway
 
 commits: `cf2dcd5f8`, `ad1d00d8f`, `6f623b30a`, `aaf031169`
 
@@ -846,13 +869,13 @@ commits: `cf2dcd5f8`, `ad1d00d8f`, `6f623b30a`, `aaf031169`
 - [ ] **WhatsApp history & contacts sync** — Verify that WhatsApp chat history and contacts are correctly synchronized. (`aaf031169`)
 - [ ] **WhatsApp auto-reconnect** — Verify the WhatsApp gateway automatically reconnects on server start. (`6f623b30a`)
 
-### 23. Notifications
+### 34. Notifications
 
 - [ ] **Restart notifications toggle** — Toggle "restart notifications" in settings. Verify notifications only appear when enabled. (`f82b4f350`)
 - [ ] **Notification text selection** — Verify that text can be selected in notification inbox messages. (`3449197c3`)
 - [ ] **macOS notification "Open" click** — Click "Open" on a macOS system notification. Verify it correctly brings the Screenpipe window to the front. (`3e86cebb0`)
 
-### 26. Onboarding & Fleet UX
+### 35. Onboarding & Fleet UX
 
 commits: `f6c21a022`, `31e67ae1c`, `8d0a5348d`, `b1c30e99b`
 
@@ -860,7 +883,7 @@ commits: `f6c21a022`, `31e67ae1c`, `8d0a5348d`, `b1c30e99b`
 - [ ] **Pipes & Fleet merged UI** — Open Pipes tab. Verify fleet devices appear in the dropdown. Verify local machine is filtered/distinct. (`31e67ae1c`, `8d0a5348d`)
 - [ ] **Scheduled vs Manual pipes** — In My Pipes, verify sub-tabs for scheduled and manual pipes. (`b1c30e99b`)
 
-### 27. Connections (Multi-instance & New Services)
+### 30. Connections (Multi-instance & New Services)
 
 commits: `c8769545b`, `4f522325b`, `54000c295`
 
@@ -872,13 +895,21 @@ commits: `c8769545b`, `4f522325b`, `54000c295`
 - [ ] **Google Docs connection & Pro gate** — Verify that Google Docs connection works and that the "Pro required" gate correctly appears for non-pro users on the connect button. (`9835b09d8`, `dbf451f34`, `dda16447c`, `e3a2be5cb`)
 - [ ] **Bitrix24 CRM integration** — Verify that Bitrix24 CRM connection can be authorized and syncs data correctly. (`55026df56`)
 - [ ] **OAuth auto-refresh** — Verify that expired OAuth tokens for generic proxy connections (like Google, Bitrix24) are automatically refreshed. (`d7835eabb`)
+- [ ] **Pocket AI voice recorder integration** — Verify that Pocket AI voice recorder can be added as a connection and recordings sync to screenpipe. (`a785cf891`)
 
-### 28. Deployment & Remote Management
+### 31. API Auth & Settings UI
+
+commits: `9f8c8d0f2`
+
+- [ ] **Readable API key display** — Open Settings > API. Verify the API key is displayed in a human-readable format (not masked by default). Users can view the full key without additional clicks.
+- [ ] **API key regeneration** — In Settings > API, verify there's a "Regenerate" button. Clicking it generates a new API key and invalidates the old one immediately.
+
+### 32. Deployment & Remote Management
 
 commits: `c6a73b17e`, `945b687ec`
 
 - [ ] **Deploy to offline devices** — Use chat prompt to deploy screenpipe to an offline device. Verify it handles the "Screen Sharing" permission dialog by opening it on the target machine. (`c6a73b17e`, `945b687ec`)
 
-### 29. Browser Extension
+### 36. Browser Extension
 
 - [ ] **Browser extension token auth** — Open the browser extension options page. Verify that token-based authentication works and that it can successfully connect to the Screenpipe API. (`be14de544`)
