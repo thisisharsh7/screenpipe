@@ -459,6 +459,12 @@ pub async fn start_device_monitor(
                                             "[DEVICE_RECOVERY] failed to start new default output {}: {} — keeping old devices running",
                                             new_default_output, e
                                         );
+                                        // Track failure to avoid spammy retries
+                                        let count = failed_devices
+                                            .entry(new_default_output.clone())
+                                            .or_insert((0, Instant::now()));
+                                        count.0 += 1;
+                                        count.1 = Instant::now();
                                         false
                                     }
                                 }
@@ -530,6 +536,12 @@ pub async fn start_device_monitor(
                                             "[DEVICE_RECOVERY] failed to start communications output {}: {}",
                                             new_comm_output, e
                                         );
+                                        // Track failure to avoid spammy retries
+                                        let count = failed_devices
+                                            .entry(new_comm_output.clone())
+                                            .or_insert((0, Instant::now()));
+                                        count.0 += 1;
+                                        count.1 = Instant::now();
                                     }
                                 }
                             }
