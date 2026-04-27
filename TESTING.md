@@ -279,7 +279,7 @@ commits: `94531265`, `d794176a`, `9070639c`, `0378cab1`, `4a3313d3`, `7ffdd4f1`,
 
 ### 9. database & storage
 
-commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`
+commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`, `cbad75797`, `30afa2e57`
 
 - [ ] **slow DB insert warning** — check logs. "Slow DB batch insert" warnings should be <1s in normal operation. >3s indicates contention.
 - [ ] **concurrent DB access** — UI queries + recording inserts happening simultaneously. no "database is locked" errors.
@@ -302,6 +302,8 @@ commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`
 - [ ] **Data directory setting location** — Verify that the data directory setting is now located in the "Storage" tab of the settings menu. (`0d3ffe30a`)
 - [ ] **store.bin encryption** — Enable "Encrypt store.bin" in settings (Privacy > Security). Verify that `store.bin` is encrypted and correctly decrypted on startup using the OS keychain. (`143875207`, `aee1cd2b5`, `85ecd7935`)
 - [ ] **graceful keychain denial** — On macOS, deny keychain access for store encryption. Verify the app handles it gracefully and falls back to unencrypted store if necessary or warns the user. (`b9c01b916`)
+- [ ] **SQLite I/O error recovery during disk pressure** — During heavy recording with low disk space (<500MB free), verify that SQLite I/O errors (code 522) and malformed database errors don't cascade. The write queue should detach poisoned connections and reuse fresh ones. No "database disk image is malformed" panics. (`cbad75797`)
+- [ ] **mDNS hostname truncation** — Configure the app with a hostname >63 characters. Verify the app safely truncates it for mDNS registration without panicking on assertion `utf.len() < 64`. Check logs for truncation warning. (`30afa2e57`)
 
 - [ ] **slow DB insert warning** — check logs. "Slow DB batch insert" warnings should be <1s in normal operation. >3s indicates contention.
 - [ ] **concurrent DB access** — UI queries + recording inserts happening simultaneously. no "database is locked" errors.
