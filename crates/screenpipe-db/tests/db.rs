@@ -2017,4 +2017,30 @@ mod tests {
             .unwrap();
         assert_eq!(count, 0, "Should count 0 for non-matching query");
     }
+
+    #[tokio::test]
+    async fn test_fts_index_progress_table_dropped() {
+        // Verify that after all migrations, the old fts_index_progress table is dropped
+        let db = setup_test_db().await;
+
+        // Try to query the dropped table — should fail gracefully
+        let result: Result<Option<i32>, sqlx::Error> = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM fts_index_progress"
+        )
+        .fetch_optional(&db.pool)
+        .await;
+
+        // The query should fail because the table doesn't exist
+        assert!(result.is_err(), "fts_index_progress table should not exist after migrations");
+
+        // Verify that the FTS tables (which replace it) exist instead
+        let frames_fts_exists: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='frames_fts'"
+        )
+        .fetch_one(&db.pool)
+        .await
+        .unwrap();
+
+        assert_eq!(frames_fts_exists, 1, "frames_fts table should exist as replacement");
+    }
 }
