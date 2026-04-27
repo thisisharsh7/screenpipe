@@ -177,6 +177,8 @@ commits: calendar_speaker_id.rs, meetings.rs, meeting_persister.rs
 - [ ] **Meeting detection support for Signal, WhatsApp, Telegram, and Teams 2** — Verify that meetings from these apps are correctly detected and recorded. (`8d2f1a542`, `a74e393e1`)
 - [ ] **Browser meetings splitting fix** — Verify that meetings in the browser are correctly split into separate events. (`d8ba1dad3`)
 - [ ] **Meeting with hidden UI controls** — Start a Zoom/Teams meeting. Minimize the meeting window or switch apps (Zoom controls move out of accessibility tree). Verify meeting stays active and does NOT auto-terminate after 30 seconds. Audio output detection prevents false "meeting ended" events. (`4e784f620`)
+- [ ] **Zoom false positive prevention** — Open Zoom app but do not join a meeting. Verify that no meeting is detected just because Zoom is running. Meeting detection should only trigger when Zoom actually has an active call/meeting. (`a500ec11b`)
+- [ ] **Audio output prevents premature meeting end** — Start a meeting, mute your audio and hide the Zoom window. Verify that the active audio output stream prevents the meeting from being incorrectly terminated. (`4e784f620`)
 - [ ] **OpenAI-compatible transcription endpoint** — Verify that the `/v1/audio/transcriptions` endpoint works as expected, following the OpenAI specification. (`5a14e9a92`)
 
 ### 5. frame comparison & OCR pipeline
@@ -196,6 +198,7 @@ commits: `6dd5d98e`, `831ad258`
 - [ ] **window capture only on changed frames** — window enumeration (CGWindowList) should NOT run on skipped frames. verify by checking CPU on idle multi-monitor setup.
 - [ ] **Meeting app OCR force** — Open a meeting app (Zoom, Teams, Meet). Verify OCR is forced for these apps even if accessibility is available. (`b18ae2253`)
 - [ ] **Accessibility automation properties** — Verify automation properties (labels, roles, automation IDs) are correctly captured in the accessibility tree across Windows, macOS, and Linux. (`1b7d0db5b`)
+- [ ] **Accessibility text events include app context** — Verify that text events from the accessibility tree now include `app_name` and `window_title` fields. Query the database to confirm: `sqlite3 ~/.screenpipe/db.sqlite "SELECT id, text, app_name, window_title FROM text_events LIMIT 5"` shows non-null app_name/window_title values. (`d67fd012c`)
 - [ ] **DB write coalesce queue** — Under heavy load (e.g. many pipes + high FPS), verify no "database is locked" errors and no vision stalls due to write contention. (`39c016cb3`, `d119d060d`, `231521192`)
 - [ ] **Windows idle CPU reduction** — Verify low CPU usage on Windows when screen is idle, using event-driven hooks and caching. (`d2c9d1fb8`)
 - [ ] **reduced CPU spikes in vision/capture pipeline** — Actively browse and use applications, verifying that CPU spikes in the vision/capture pipeline are significantly reduced. (`8f7294e6`)
@@ -302,6 +305,7 @@ commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`
 - [ ] **Data directory setting location** — Verify that the data directory setting is now located in the "Storage" tab of the settings menu. (`0d3ffe30a`)
 - [ ] **store.bin encryption** — Enable "Encrypt store.bin" in settings (Privacy > Security). Verify that `store.bin` is encrypted and correctly decrypted on startup using the OS keychain. (`143875207`, `aee1cd2b5`, `85ecd7935`)
 - [ ] **graceful keychain denial** — On macOS, deny keychain access for store encryption. Verify the app handles it gracefully and falls back to unencrypted store if necessary or warns the user. (`b9c01b916`)
+- [ ] **DB write queue fatal error handling** — Trigger an SQLite I/O error or database corruption condition. Verify that the write queue treats I/O errors as fatal and logs the error appropriately. The app should terminate or enter a degraded state rather than continuing with corrupted data. (`cbad75797`)
 
 - [ ] **slow DB insert warning** — check logs. "Slow DB batch insert" warnings should be <1s in normal operation. >3s indicates contention.
 - [ ] **concurrent DB access** — UI queries + recording inserts happening simultaneously. no "database is locked" errors.
@@ -692,6 +696,7 @@ commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`,
 - [ ] **Mermaid diagram XSS sanitization** — Verify that mermaid diagrams in the UI are correctly sanitized to prevent XSS attacks. (`3405e9793`)
 - [ ] **Per-machine pipe favorites (stars)** — Toggle the star icon for a pipe. Verify that favorites are persisted per-machine and that the filter chip correctly shows starred pipes first. (`e1a18adb9`, `0a2c1abb7`)
 - [ ] **Connected integrations @mentions in chat** — Open the filter popover in chat. Verify that connected integrations (like Notion, Slack, Google Docs) appear as @mentions for easy filtering. (`1c0c95b20`)
+- [ ] **Pipe auto-run on install** — Install a pipe via the UI or CLI. Verify that the pipe runs immediately after installation without requiring manual trigger. (`075f3ccb4`)
 
 commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`, `5908d7f4`, `46422869`, `4f43da70`, `71a1a537`, `6abaaa36`
 
@@ -736,7 +741,7 @@ commits: `fc830b43`, `f54d3e0d`
 
 ### 20. Vault Lock (Encryption at rest)
 
-commits: `274a968af`, `dc575e48e`, `81aabbf18`, `d5e071854`, `db08f8c06`, `f4225b580`
+commits: `274a968af`, `dc575e48e`, `81aabbf18`, `d5e071854`, `db08f8c06`, `f4225b580`, `95163f292`
 
 - [ ] **Vault lock initialization** — Verify that the vault can be initialized and a password set.
 - [ ] **Encryption of database and data files** — Verify that screenpipe data is encrypted at rest when the vault is locked.
@@ -746,10 +751,12 @@ commits: `274a968af`, `dc575e48e`, `81aabbf18`, `d5e071854`, `db08f8c06`, `f4225
 - [ ] **Vault lock shortcut** — Verify that the configurable vault lock shortcut works as expected. (`81aabbf18`)
 - [ ] **CLI vault commands** — Verify that `screenpipe vault` commands work without the server running. (`f4225b580`)
 - [ ] **Skip server start on locked vault** — Verify that the server does not start if the vault is locked. (`d5e071854`)
+- [ ] **Unified keychain encryption disable** — Run `screenpipe disable_keychain_encryption` from the CLI. Verify that the setting is persisted and subsequent runs do not attempt keychain operations. (`95163f292`)
 
 ### 21. Privacy & Incognito Detection
 
 - [ ] **PII Filter** — Toggle the PII filter in chat or search. Verify that sensitive information is filtered using Tinfoil. (`fec0f1023`)
+- [ ] **Privacy filter via pipe permissions** — Install a pipe and enable "Privacy mode" permissions. Verify that the server applies authoritative PII filtering to pipe responses based on user permissions, preventing pipes from directly accessing unfiltered sensitive data. (`02c1329d8`)
 
 
 commits: `ad431b513`, `d9722bccc`, `4df21e83d`
@@ -759,6 +766,7 @@ commits: `ad431b513`, `d9722bccc`, `4df21e83d`
 - [ ] **Incognito detection UI feedback** — Verify that the UI correctly reflects when an incognito window is being ignored.
 - [ ] **DRM pause behavior** — Play DRM-protected content (e.g., Netflix in Safari). Verify that Screenpipe pauses recording gracefully and resumes automatically once the DRM content is closed, without crashing the server. (`3d9f0e8bb`)
 - [ ] **LAN-access toggle** — Toggle "Enable LAN access" in API settings. Verify that the API binds to `0.0.0.0` and that `api_auth` is forcibly enabled for security. (`c8d9c83f0`)
+- [ ] **mDNS safe hostname truncation** — Enable LAN access. On a machine with a very long hostname (e.g., >63 characters), verify that mDNS discovery does not panic with "assertion failed: utf.len() < 64". The hostname should be safely truncated to valid mDNS length. (`30afa2e57`)
 
 commits: `fc830b43`
 
@@ -905,6 +913,7 @@ commits: `c6a73b17e`, `945b687ec`
 
 - [ ] **CLI logout** — Run `screenpipe logout`. Verify it clears local auth tokens. (`793c3d6e9`)
 - [ ] **CLI sync remote** — Verify `screenpipe sync remote` command and its configuration. (`f46e85cb1`)
+- [ ] **CLI periodic install reminder** — Run `screenpipe` from the command line without the desktop app installed, or with the desktop app closed. Verify that after some interactions, a periodic reminder message shows nudging the user to install the desktop app for better experience. (`d142587d9`)
 
 ### 31. Chat (Pi)
 
