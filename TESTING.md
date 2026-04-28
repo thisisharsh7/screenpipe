@@ -78,6 +78,7 @@ commits that broke this area: `0752ea59`, `7562ec62`, `2a2bd9b5`, `f2f7f770`, `5
 - [ ] **dock right-click menu works** — right-click dock icon. "Show screenpipe", "Settings", "Check for updates" all work (`d794176a`).
 - [ ] **tray menu items don't fire twice** — click any tray menu item. action happens once, not twice (`9e151265`).
 - [ ] **tray health indicator** — tray icon shows green (healthy) or yellow/red (issues) based on recording status.
+- [ ] **transient health flaps don't show Error** — during high system load (e.g., heavy OCR or DB contention), the tray icon may briefly report degraded status, but should NOT show Error/red until 2+ minutes of sustained unhealthy status. Verify tray stays green/yellow during brief backend pressure spikes while recording continues. (`abc234aae`)
 - [ ] **tray on notched MacBook** — on 14"/16" MacBook Pro, tray icon is visible (not hidden behind notch). if hidden, user can Cmd+drag to reposition.
 - [ ] **activation policy never changes** — after ANY user interaction, dock icon should remain visible. no Accessory mode switches. verify with: `ps aux | grep screenpipe`.
 - [ ] **no autosave_name crash** — removed in `2a2bd9b5`. objc2→objc pointer cast was causing `panic_cannot_unwind`.
@@ -104,6 +105,7 @@ commits: `28e5c247`
 ### 4. audio device handling
 
 - [ ] **CoreAudio Process Tap** — On macOS 14.4+, verify that system audio defaults to CoreAudio Process Tap and rebuilds if silence is detected. (`75a52603b`, `5634664da`)
+- [ ] **transient SCK callback errors don't spam logs** — When system audio device changes while ScreenCaptureKit stream is active, the stream briefly reports "callback never fired" error, but recovery is automatic within 2 seconds without filling logs. Verify: no more than 1-2 "callback never fired" warn entries per device switch event in logs. (`4800c9246`)
 
 
 - [ ] **default audio device** — with "follow system default", recording uses whatever macOS says is default.
