@@ -39,6 +39,7 @@ commits that broke this area: `0752ea59`, `d89c5f14`, `4a64fd1a`, `fa591d6e`, `8
 - [ ] **keyboard focus in overlay** — show overlay, start typing. text input works immediately without clicking (`d74d0665`, `5a50aaad`).
 - [ ] **keyboard focus in chat** — show chat, start typing. text input works immediately.
 - [ ] **escape closes overlay** — press Escape while overlay is visible. it hides.
+- [ ] **escape closes overlay with Home window open (Windows)** — On Windows, open the Home window, then open the overlay on top of it. Press Escape — overlay should close immediately without requiring a focus change first. (`c513a3345`)
 - [ ] **no space jump on show** — showing the overlay should NOT cause a space transition animation (`6d44af13`, `d74d0665`).
 - [ ] **no space jump on hide** — hiding the overlay should NOT switch you to a different space.
 - [ ] **screen recording visibility setting** — toggle "show in screen recording" in settings. overlay should appear/disappear from screen recordings accordingly (`206107ba`).
