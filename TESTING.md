@@ -53,6 +53,7 @@ commits that broke this area: `0752ea59`, `d89c5f14`, `4a64fd1a`, `fa591d6e`, `8
 - [ ] **space monitor only hides main overlay** — swipe Spaces. main overlay hides. chat window and shortcut reminder are unaffected.
 - [ ] **space monitor doesn't race with show** — show overlay via shortcut. the `activateIgnoringOtherApps` call must not trigger space monitor's hide callback.
 - [ ] **Chat streaming UX** — Verify that chat streaming uses a state-aware grid dissolve loader for a smooth user experience.
+- [ ] **Chat message persistence on navigate** — Start a chat, type a message and hit send. Before response completes, navigate away (close chat, switch windows). Return to chat. User's message and assistant's partial response must both be present. Streaming indicator clears after 30s silence even if response never fully arrived. (`a46b4ebe0`)
 - [ ] **chat always-on-top toggle** — Toggle the "chat always-on-top" setting and verify that the chat window behaves as expected (e.g., stays on top of other applications when enabled). (`b6c363e5`)
 - [ ] **overlay hidden in OBS when screen recording toggle is off** — Verify that the overlay is NOT visible in OBS (or other screen capture tools) when the "show in screen recording" toggle is off. (`87d107a29`)
 - [ ] **resizable shortcut overlay** — Change shortcut overlay size (small/medium/large) in settings and verify it updates correctly on all spaces. (`1e1e17171`)
@@ -77,7 +78,7 @@ commits that broke this area: `0752ea59`, `7562ec62`, `2a2bd9b5`, `f2f7f770`, `5
 - [ ] **tray icon persists after overlay show/hide** — same test. tray icon must remain visible.
 - [ ] **dock right-click menu works** — right-click dock icon. "Show screenpipe", "Settings", "Check for updates" all work (`d794176a`).
 - [ ] **tray menu items don't fire twice** — click any tray menu item. action happens once, not twice (`9e151265`).
-- [ ] **tray health indicator** — tray icon shows green (healthy) or yellow/red (issues) based on recording status.
+- [ ] **tray health indicator** — tray icon shows green (healthy) or yellow/red (issues) based on recording status. With transient DB/OCR/audio delays, icon stays green for 2 min before flipping to Error. Fixes false Error signals on healthy recording. (`abc234aae`)
 - [ ] **tray on notched MacBook** — on 14"/16" MacBook Pro, tray icon is visible (not hidden behind notch). if hidden, user can Cmd+drag to reposition.
 - [ ] **activation policy never changes** — after ANY user interaction, dock icon should remain visible. no Accessory mode switches. verify with: `ps aux | grep screenpipe`.
 - [ ] **no autosave_name crash** — removed in `2a2bd9b5`. objc2→objc pointer cast was causing `panic_cannot_unwind`.
