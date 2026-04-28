@@ -913,3 +913,73 @@ commits: `c6a73b17e`, `945b687ec`
 - [ ] **Persistent background chats** — Verify that chats continue to stream in the background even when navigating away from the chat view. (`0060ae9e5`, `ec5e80992`)
 - [ ] **Inline history in overlay** — Verify that inline history is restored in the overlay window. (`15b419ec7`)
 - [ ] **Notification URL actions** — Open a URL action from a native macOS notification when the overlay is not mounted. (`7fdcd2054`)
+- [ ] **Chat persist user message on send** — Type a message and send it. Verify the message appears in the chat history and is persisted correctly if the app restarts. (`a46b4ebe0`)
+- [ ] **Chat streaming state recovery** — Start a streaming response. Close the app mid-stream. Reopen and verify the chat recovers gracefully without hanging at "analyzing…". (`a46b4ebe0`, `2b1bc216a`)
+- [ ] **Chat streaming grid dissolve loader** — During streaming, verify a smooth grid-dissolve animation transitions between states. (`2db677f85`)
+- [ ] **Chat turn end state preservation** — Verify that streaming state remains alive across turn boundaries without flicker between send/stop buttons. (`2db677f85`)
+- [ ] **Chat abort on close** — Delete a chat while it's streaming. Verify the Pi agent process aborts and the deleted chat stays deleted. (`fff3b2a2c`)
+- [ ] **Chat title sync to sidebar** — Create a new chat and let the title auto-generate. Verify the sidebar updates live with the new title, not on the next page reload. (`40a4f61cc`)
+- [ ] **Chat dark-mode foreground opacity** — Switch to dark mode. Verify chat rows in the sidebar have full-opacity foreground and are readable. (`6e91a8a1e`)
+- [ ] **Chat initial-mount autosend** — Verify the bus-key fix prevents chat hangs during initial mount with autosend enabled. (`00e5c8c7f`)
+
+### 32. Pipes (Scheduling & Automation)
+
+commits: `d89425b64`, `f3839d985`
+
+- [ ] **One-off scheduled pipes via ISO datetime** — Create a pipe with `schedule: at <iso>` (e.g., `at 2026-04-28T12:00:00Z`). Verify it runs once at the specified time. (`d89425b64`)
+- [ ] **Stale-install guard for pipes** — Install a pipe, then reinstall it immediately. Verify the app prevents stale/orphaned installs and shows a clear UI message. (`f3839d985`)
+- [ ] **Pipe UI cancel button** — Start a long-running pipe install. Click the cancel button. Verify the installation stops cleanly. (`f3839d985`)
+- [ ] **Scheduled pipe order (FIFO)** — Create multiple scheduled pipes with different times. Verify they appear in the sidebar in FIFO order by `startedAt` timestamp. (`eee6be2e3`)
+
+### 33. Browsers & Connections
+
+commits: `20b3069ac`, `f0f05b799`, `6497897ad`, `7469a7015`, `495ea9700`, `d11ac566e`, `e92d0f4a3`, `4fb459115`, `deec9ecb7`
+
+- [ ] **Owned browser sidebar embed** — Verify the agent browser appears as a right-side sidebar in the main window. It should be embeddable and movable. (`f0f05b799`)
+- [ ] **Owned browser via Tauri WebviewWindow** — Verify the owned browser uses Tauri's native WebviewWindow backend correctly. (`6497897ad`)
+- [ ] **Browser trait unification** — Verify that all browser types (user-browser, owned-browser, browser extension) are handled via a unified Browser trait and registry. (`7469a7015`)
+- [ ] **Browser self-describe via /connections** — Use `/connections/:id` endpoint to query a browser. Verify it returns browser metadata (type, title, URL). (`495ea9700`, `20b3069ac`)
+- [ ] **CLI browsers visible to pi-agent** — Run `screenpipe connection list`. Verify browsers from the running engine are visible with an env-var fallback. (`4fb459115`, `d11ac566e`)
+- [ ] **Settings browser cards** — Open Settings. Verify cards for user-browser and owned-default browser appear with correct status/controls. (`e92d0f4a3`)
+- [ ] **Connection list sort & pi truncation note** — Run `screenpipe connection list`. Verify connections are sorted by "connected" status first. Note pi truncation in skill if output is large. (`deec9ecb7`)
+
+### 34. Browser Extension (MV3)
+
+commits: `c0ba6e6f2`, `bd16d5b76`, `39f21d03d`
+
+- [ ] **Browser MV3 keepalive every 30s** — Let the browser extension run for 2 minutes. Verify the extension stays active via 30-second keepalive pings (check extension logs). (`c0ba6e6f2`)
+- [ ] **Owned-browser install retry logic** — Fail the owned-browser install once (e.g., network error). Verify the extension retries automatically. (`c0ba6e6f2`)
+- [ ] **Browser extension tab filtering** — Open browser extension popup. Verify it only shows eligible tabs and excludes `chrome-extension://` pages. (`39f21d03d`)
+- [ ] **Browser extension unified /connections** — Update browser extension to v2.4.95. Verify it unifies under `/connections/browser` endpoint without flapping. (`bd16d5b76`)
+
+### 35. Health & Errors
+
+commits: `abc234aae`
+
+- [ ] **Tray error suppression for transient flaps** — Trigger transient `/health` failures (e.g., brief network hiccup). Verify the tray does NOT show an error icon unnecessarily. (`abc234aae`)
+
+### 36. Workflow & Connections
+
+commits: `0e4dfceda`, `b247dcd83`
+
+- [ ] **Workflow classifier un-orphan** — Verify workflow events are routed through the gateway correctly (no orphaned classifier instances). (`0e4dfceda`)
+- [ ] **Supabase OAuth app integration** — Add a Supabase OAuth connection. Verify authentication, token refresh, and data sync work correctly. (`b247dcd83`)
+
+### 37. Help & Documentation
+
+commits: `15824e198`
+
+- [ ] **Help cards for Documentation & Video tutorials** — Open the Help section. Verify new cards for "Documentation" and "Video tutorials" appear with correct links. (`15824e198`)
+
+### 38. Onboarding (Connect-Your-World)
+
+commits: `c0c6171be`, `724b38391`, `47b6f3f52`
+
+- [ ] **Integration card height equalization** — Open onboarding "Connect Your World" tab. Verify all integration cards have equal height (no inconsistent layouts). (`c0c6171be`)
+- [ ] **Warp MCP connection card** — Verify the Warp MCP connection card appears with the real Warp logo. (`47b6f3f52`, `724b38391`)
+
+### 39. Sidebar & UI Polish
+
+commits: `eee6be2e3`, `6e91a8a1e`
+
+- [ ] **Chat sidebar dark-mode readability** — Switch to dark mode. Verify chat rows have full-opacity foreground for good contrast. (`6e91a8a1e`)
