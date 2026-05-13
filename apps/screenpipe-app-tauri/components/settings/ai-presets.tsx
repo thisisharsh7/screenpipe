@@ -1398,7 +1398,7 @@ const AISection = ({
             onOpenChange={(open) => {
               setIsModelPickerOpen(open);
               if (open) {
-                setModelSearch(settingsPreset?.model || "");
+                setModelSearch("");
               } else {
                 setModelSearch("");
               }
