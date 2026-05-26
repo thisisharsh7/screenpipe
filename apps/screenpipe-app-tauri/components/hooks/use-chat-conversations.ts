@@ -999,6 +999,18 @@ export function useChatConversations(opts: UseChatConversationsOpts) {
     const newSid = explicitId ?? crypto.randomUUID();
     piSessionIdRef.current = newSid;
     piSessionSyncedRef.current = true;
+    store.actions.upsert({
+      id: newSid,
+      title: "new chat",
+      preview: "",
+      status: "idle",
+      messageCount: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      pinned: false,
+      unread: false,
+      draft: true,
+    });
     store.actions.setCurrent(newSid);
     // Set conversationId to the new Pi session id immediately. The chat
     // panel's foreground bus registration (registerForeground) is keyed by
