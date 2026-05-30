@@ -204,14 +204,28 @@ export async function showChatWithPrefill(data: ChatPrefillData): Promise<void> 
   const targetWindow = data.useHomeChat ? "home" : "chat";
   const currentWindowLabel = getCurrentWindow().label;
 
-  // If we're already in the Home window but on another route (e.g. /settings),
-  // route locally and pass prefill through sessionStorage so the embedded chat
-  // can consume it after /home mounts.
   if (data.useHomeChat && currentWindowLabel === "home") {
     const url = new URL(window.location.href);
     const isHomeRoute = url.pathname === "/home";
-    const isHomeSection = url.searchParams.get("section") === "home";
-    if (!isHomeRoute || !isHomeSection) {
+    const section = url.searchParams.get("section");
+    const isHomeSection = !section || section === "home";
+
+    // When we're already on the Home page, switch sections in-app instead of
+    // hard-reloading the window. That preserves the always-mounted chat tree,
+    // including in-flight streams and draft user text.
+    if (isHomeRoute) {
+      if (!isHomeSection) {
+        await emit("navigate", { url: "/home?section=home" });
+      }
+      await waitForChatReady(targetWindow);
+      await emit("chat-prefill", { ...data, targetWindow });
+      return;
+    }
+
+    // Non-home routes in the Home window (for example /settings) still need a
+    // full route transition. Persist the prefill so the embedded chat can
+    // consume it after /home mounts.
+    if (!isHomeSection) {
       sessionStorage.setItem(
         PENDING_CHAT_PREFILL_KEY,
         JSON.stringify({ ...data, targetWindow }),

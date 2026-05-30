@@ -63,7 +63,7 @@ import { MemoizedReactMarkdown } from "@/components/markdown";
 import remarkGfm from "remark-gfm";
 import posthog from "posthog-js";
 import { PipesSection } from "@/components/settings/pipes-section";
-import { ChatPrefillData } from "@/lib/chat-utils";
+import { showChatWithPrefill } from "@/lib/chat-utils";
 import { useFeedbackStore } from "@/lib/stores/feedback-store";
 // --- Types ---
 
@@ -175,15 +175,6 @@ function getReadmeFromPipeMd(raw: string): string {
   if (end === -1) return trimmed;
   return trimmed.slice(end + 3).trim();
 }
-
-function navigateHomeAndPrefill(data: ChatPrefillData): void {
-  sessionStorage.setItem("pendingChatPrefill", JSON.stringify(data));
-  const url = new URL(window.location.href);
-  url.searchParams.set("section", "home");
-  window.location.href = url.toString();
-}
-
-
 
 function formatCount(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
@@ -1098,7 +1089,7 @@ function PipeDetailPanel({
                 className="h-9 px-4 text-sm font-semibold rounded-none uppercase tracking-wide"
                 onClick={() => {
                   const pipeSource = pipe.source || "";
-                  navigateHomeAndPrefill({
+                  void showChatWithPrefill({
                     context: `the user wants to fork/customize an existing pipe from the store.
 
 here is the original pipe content (pipe.md):
@@ -1110,6 +1101,7 @@ ${pipeSource}
 IMPORTANT: first read the screenpipe skill file to understand how pipes work, then ask the user how they want to customize/improve this pipe for their specific needs. do NOT auto-send or auto-create — have a conversation first to understand what they want to change.`,
                     prompt: `i want to fork the "${pipe.title}" pipe and adapt it to my needs. here is the original pipe.md:\n\n${pipeSource}`,
                     autoSend: true,
+                    useHomeChat: true,
                   });
                 }}
               >
@@ -1463,7 +1455,7 @@ export function PublishDialog({
       return;
     }
     onOpenChange(false);
-    navigateHomeAndPrefill({
+    void showChatWithPrefill({
       context: `the user wants to publish their pipe "${pipeName}" to the screenpipe store. here is their current pipe.md:
 
 \`\`\`
@@ -1512,6 +1504,7 @@ STEP 5: PUBLISH (only after user says yes)
 - tell the user the result`,
       prompt: `help me publish my pipe "${pipeName}" to the store. make it generic and ready for anyone to use.`,
       autoSend: true,
+      useHomeChat: true,
     });
   };
 

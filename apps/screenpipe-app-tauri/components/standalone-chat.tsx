@@ -6352,6 +6352,52 @@ export function StandaloneChat({
     return takeQueuedDisplayById(sessionId, match[0]);
   }
 
+  function isRecoverablePiBootstrapError(error: string) {
+    return error.includes("Pi not initialized")
+      || error.includes("Pi command queue not initialized")
+      || error.includes("Pi is not running");
+  }
+
+  async function recoverCurrentPiSession() {
+    const providerConfig = buildProviderConfig();
+    if (piStartInFlightRef.current) {
+      const startWait = Date.now();
+      while (piStartInFlightRef.current && Date.now() - startWait < 10000) {
+        await new Promise((r) => setTimeout(r, 300));
+      }
+      return !piStartInFlightRef.current;
+    }
+
+    piStartInFlightRef.current = true;
+    setPiStarting(true);
+    try {
+      const home = await homeDir();
+      const dir = await join(home, ".screenpipe", "pi-chat");
+      const startRes = await commands.piStart(
+        piSessionIdRef.current,
+        dir,
+        settings.user?.token ?? null,
+        providerConfig,
+      );
+      if (startRes.status === "ok" && startRes.data.running) {
+        setPiInfo(startRes.data);
+        piSessionSyncedRef.current = false;
+        piCrashCountRef.current = 0;
+        if (providerConfig) {
+          setRunningConfigFromProviderConfig(providerConfig);
+        }
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("[Pi] session recovery failed", error);
+      return false;
+    } finally {
+      setPiStarting(false);
+      piStartInFlightRef.current = false;
+    }
+  }
+
   async function enqueuePiMessage(userMessage: string, displayLabel?: string) {
     if (!piInfo?.running) {
       // No Pi running → fall back to the normal start-and-send path.
@@ -6407,12 +6453,24 @@ export function StandaloneChat({
     }
 
     try {
-      const result = await commands.piQueuePrompt(
+      let result = await commands.piQueuePrompt(
         piSessionIdRef.current,
         queuedPrompt,
         piImages.length > 0 ? piImages : null,
         queuedPreviewForText(userMessage),
       );
+      if (result.status === "error" && isRecoverablePiBootstrapError(result.error)) {
+        console.log("[Pi] queue session missing — recovering and retrying");
+        const recovered = await recoverCurrentPiSession();
+        if (recovered) {
+          result = await commands.piQueuePrompt(
+            piSessionIdRef.current,
+            queuedPrompt,
+            piImages.length > 0 ? piImages : null,
+            queuedPreviewForText(userMessage),
+          );
+        }
+      }
       const queuedTurnIntentId = `queued-${result.status === "ok" ? result.data : Date.now()}`;
       if (result.status !== "ok") {
         setInput(prevInput);
@@ -6779,33 +6837,16 @@ export function StandaloneChat({
 
       // Race: user hit "+ NEW" before Pi finished registering the new session
       // in the pool. Auto-spawn once and retry before surfacing the error.
-      if (result.status === "error" && result.error.includes("Pi not initialized")) {
-        console.log("[Pi] session not registered yet — auto-spawning and retrying");
-        try {
-          const home = await homeDir();
-          const dir = await join(home, ".screenpipe", "pi-chat");
-          const providerConfig = buildProviderConfig();
-          const startRes = await commands.piStart(
+      if (result.status === "error" && isRecoverablePiBootstrapError(result.error)) {
+        console.log("[Pi] session not registered yet — recovering and retrying");
+        const recovered = await recoverCurrentPiSession();
+        if (recovered) {
+          result = await commands.piPrompt(
             piSessionIdRef.current,
-            dir,
-            settings.user?.token ?? null,
-            providerConfig,
+            promptMessage,
+            piImages.length > 0 ? piImages : null,
+            null,
           );
-          if (startRes.status === "ok" && startRes.data.running) {
-            setPiInfo(startRes.data);
-            piSessionSyncedRef.current = false;
-            if (providerConfig) {
-              setRunningConfigFromProviderConfig(providerConfig);
-            }
-            result = await commands.piPrompt(
-              piSessionIdRef.current,
-              promptMessage,
-              piImages.length > 0 ? piImages : null,
-              null,
-            );
-          }
-        } catch (e) {
-          console.error("[Pi] auto-spawn retry failed", e);
         }
       }
 

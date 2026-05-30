@@ -50,7 +50,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { emit, once, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { mountAgentEventBus, registerDefault } from "@/lib/events/bus";
 import { parsePipeSessionId } from "@/lib/events/types";
-import { ChatPrefillData } from "@/lib/chat-utils";
+import { showChatWithPrefill } from "@/lib/chat-utils";
 import { commands } from "@/lib/utils/tauri";
 import { cn } from "@/lib/utils";
 import {
@@ -165,15 +165,6 @@ the pipe.md file MUST start with --- on the very first line (YAML front-matter).
 ## task
 
 create the pipe.md file, install it, and enable it. here is what the user wants:`;
-
-function navigateHomeAndPrefill(data: ChatPrefillData): void {
-  // Store prefill data before navigating — the page will reload so
-  // any code after location change won't execute.
-  sessionStorage.setItem("pendingChatPrefill", JSON.stringify(data));
-  const url = new URL(window.location.href);
-  url.searchParams.set("section", "home");
-  window.location.href = url.toString();
-}
 
 /** Convert a raw schedule string to a short human-readable label. */
 function humanizeSchedule(schedule: string | undefined): string {
@@ -1832,11 +1823,12 @@ export function PipesSection() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
                         onClick={() => {
-                          navigateHomeAndPrefill({
+                          void showChatWithPrefill({
                             context: "the user wants to optimize their pipe",
                             prompt: buildOptimizePrompt(pipe.config.name),
                             displayLabel: buildOptimizeDisplayLabel(pipe.config.name),
                             autoSend: true,
+                            useHomeChat: true,
                           });
                         }}
                       >
@@ -2408,10 +2400,11 @@ export function PipesSection() {
                                       <button className="text-muted-foreground hover:text-foreground p-0.5" title="open in chat" onClick={async () => {
                                         const conv = pipeExecutionToConversation(exec.pipe_name, exec.id, exec.stdout, exec.started_at);
                                         await saveConversationFile(conv);
-                                        localStorage.setItem("pending-chat-conversation", conv.id);
-                                        const url = new URL(window.location.href);
-                                        url.searchParams.set("section", "home");
-                                        window.location.href = url.toString();
+                                        setSection("home");
+                                        await emit("chat-load-conversation", {
+                                          conversationId: conv.id,
+                                          targetWindow: "home",
+                                        });
                                       }}>
                                         <MessageSquare className="w-3.5 h-3.5" />
                                       </button>
@@ -2634,14 +2627,11 @@ export function PipesSection() {
                                         exec.started_at,
                                       );
                                       await saveConversationFile(conv);
-                                      // Store pending conversation ID so StandaloneChat
-                                      // picks it up on mount (emit alone is lost during
-                                      // page navigation because the listener isn't mounted yet)
-                                      localStorage.setItem("pending-chat-conversation", conv.id);
-                                      // Navigate to home/chat section via query param
-                                      const url = new URL(window.location.href);
-                                      url.searchParams.set("section", "home");
-                                      window.location.href = url.toString();
+                                      setSection("home");
+                                      await emit("chat-load-conversation", {
+                                        conversationId: conv.id,
+                                        targetWindow: "home",
+                                      });
                                     }}
                                   >
                                     <MessageSquare className="w-3.5 h-3.5" />
@@ -2764,10 +2754,11 @@ export function PipesSection() {
             baseline_pipe_count: baseline.length,
           });
 
-          navigateHomeAndPrefill({
+          void showChatWithPrefill({
             context: PIPE_CREATION_PROMPT,
             prompt: value,
             autoSend: true,
+            useHomeChat: true,
           });
         }}
       >

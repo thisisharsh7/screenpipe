@@ -6,17 +6,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   emitMock,
+  listenMock,
   showWindowMock,
   getCurrentWindowMock,
 } = vi.hoisted(() => ({
   emitMock: vi.fn(async () => undefined),
+  listenMock: vi.fn(async (event: string, cb: (payload: { payload?: { windowLabel?: string } }) => void) => {
+    if (event === "chat-ready") {
+      setTimeout(() => cb({ payload: { windowLabel: "home" } }), 0);
+    }
+    return vi.fn();
+  }),
   showWindowMock: vi.fn(async () => undefined),
   getCurrentWindowMock: vi.fn(() => ({ label: "chat" })),
 }));
 
 vi.mock("@tauri-apps/api/event", () => ({
   emit: emitMock,
-  listen: vi.fn(),
+  listen: listenMock,
 }));
 
 vi.mock("@tauri-apps/api/window", () => ({
@@ -34,18 +41,54 @@ import {
   markSearchOpenedFromChatSurface,
   openChatConversationInCurrentChatSurface,
   readSearchOpenedFromChatSurface,
+  showChatWithPrefill,
   shouldActivateHomeSectionForChatLoadConversation,
   shouldHandleChatLoadConversationForWindow,
 } from "./chat-utils";
 import { useChatStore } from "./stores/chat-store";
 
+function createMemoryStorage() {
+  const store = new Map<string, string>();
+  return {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, value);
+    },
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
+    clear: () => {
+      store.clear();
+    },
+  };
+}
+
 describe("chat-utils", () => {
   beforeEach(() => {
     emitMock.mockClear();
+    listenMock.mockClear();
     showWindowMock.mockClear();
     getCurrentWindowMock.mockReset();
     getCurrentWindowMock.mockReturnValue({ label: "chat" });
-    localStorage.clear();
+    const localStorageMock = createMemoryStorage();
+    const sessionStorageMock = createMemoryStorage();
+    Object.defineProperty(window, "localStorage", {
+      value: localStorageMock,
+      configurable: true,
+    });
+    Object.defineProperty(window, "sessionStorage", {
+      value: sessionStorageMock,
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, "localStorage", {
+      value: localStorageMock,
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, "sessionStorage", {
+      value: sessionStorageMock,
+      configurable: true,
+    });
+    window.history.replaceState({}, "", "/");
     useChatStore.setState({
       sessions: {},
       currentId: null,
@@ -131,5 +174,28 @@ describe("chat-utils", () => {
     clearSearchOpenedFromChatSurface();
 
     expect(readSearchOpenedFromChatSurface()).toBeNull();
+  });
+
+  it("keeps navigation in-app when opening the Home chat from another Home section", async () => {
+    getCurrentWindowMock.mockReturnValue({ label: "home" });
+    window.history.replaceState({}, "", "/home?section=meetings");
+
+    await showChatWithPrefill({
+      context: "meeting context",
+      prompt: "summarize this",
+      autoSend: true,
+      useHomeChat: true,
+    });
+
+    expect(showWindowMock).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("pendingChatPrefill")).toBeNull();
+    expect(emitMock).toHaveBeenCalledWith("navigate", { url: "/home?section=home" });
+    expect(emitMock).toHaveBeenCalledWith("chat-prefill", {
+      context: "meeting context",
+      prompt: "summarize this",
+      autoSend: true,
+      useHomeChat: true,
+      targetWindow: "home",
+    });
   });
 });
