@@ -65,7 +65,6 @@ function seed(record: Partial<SessionRecord> & Pick<SessionRecord, "id">) {
     createdAt: record.createdAt ?? 1_000,
     updatedAt: record.updatedAt ?? record.createdAt ?? 1_000,
     pinned: record.pinned ?? false,
-    unread: false,
     ...record,
   });
 }

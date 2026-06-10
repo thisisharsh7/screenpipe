@@ -27,7 +27,6 @@ function seedPipeWatchSession() {
     createdAt: Date.now(),
     updatedAt: Date.now(),
     pinned: false,
-    unread: false,
     kind: "pipe-watch",
     pipeContext: {
       pipeName: "my-pipe",
@@ -75,8 +74,7 @@ describe("pipe-watch-writer: gating", () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       pinned: false,
-      unread: false,
-      kind: "chat",
+        kind: "chat",
     });
     __testing.inject(env({ type: "text_delta", delta: "x" }));
     expect((useChatStore.getState().sessions[SID]!.messages ?? []).length).toBe(0);

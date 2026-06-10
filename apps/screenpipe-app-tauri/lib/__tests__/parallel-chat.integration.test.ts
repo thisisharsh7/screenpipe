@@ -69,7 +69,6 @@ function seed(id: string) {
     createdAt: Date.now(),
     updatedAt: Date.now(),
     pinned: false,
-    unread: false,
   });
 }
 

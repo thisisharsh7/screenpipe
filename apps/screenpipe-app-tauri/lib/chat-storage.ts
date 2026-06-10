@@ -187,6 +187,9 @@ export interface ConversationMeta {
   pipeContext?: PipeContext;
   /** Title source priority: user > ai > fallback. */
   titleSource?: "user" | "ai" | "fallback";
+  /** ms since epoch of the last time the user actively viewed this chat.
+   *  Persisted to disk so unread state survives restarts. */
+  lastViewedAt?: number;
   /** Normalized first user message — the cross-window duplicate key. Carried
    *  onto the in-memory SessionRecord so the live sidebar/switcher can dedup
    *  metadata-only rows (a cross-window twin synced via
@@ -303,6 +306,7 @@ export function conversationMetaFromJson(conv: any): ConversationMeta | null {
     pipeContext: conv.pipeContext,
     titleSource: conv.titleSource,
     dedupKey: conversationDedupKey(conv) ?? undefined,
+    lastViewedAt: typeof conv.lastViewedAt === "number" ? conv.lastViewedAt : undefined,
   };
 }
 
@@ -525,7 +529,7 @@ export async function searchConversations(
  */
 export async function updateConversationFlags(
   id: string,
-  patch: Partial<Pick<ChatConversation, "pinned" | "hidden" | "title" | "titleSource" | "browserState">>
+  patch: Partial<Pick<ChatConversation, "pinned" | "hidden" | "title" | "titleSource" | "browserState" | "lastViewedAt">>
 ): Promise<void> {
   const conv = await loadConversationFile(id);
   if (!conv) return;

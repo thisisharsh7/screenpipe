@@ -258,7 +258,6 @@ export function ChatHistoryView({
           lastUserMessageAt: meta.lastUserMessageAt,
           pinned: meta.pinned ?? false,
           hidden: meta.hidden ?? false,
-          unread: false,
           draft: false,
           kind: meta.kind,
           pipeContext: meta.pipeContext,

@@ -58,7 +58,6 @@ function seed(id: string, overrides: Partial<SessionRecord> = {}) {
     createdAt: 1_000,
     updatedAt: 1_000,
     pinned: false,
-    unread: false,
     ...overrides,
   });
 }

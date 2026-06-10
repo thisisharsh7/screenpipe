@@ -3954,7 +3954,6 @@ export function StandaloneChat({
           createdAt: Date.now(),
           updatedAt: Date.now(),
           pinned: false,
-          unread: false,
           messages: [userMsg as any],
         });
       } else {
@@ -4998,7 +4997,6 @@ export function StandaloneChat({
             preview?: string;
             title?: string;
             lastError?: string;
-            unreadHint?: boolean;
           },
           opts?: { throttleMs?: number },
         ) => {
@@ -5009,9 +5007,8 @@ export function StandaloneChat({
             const preview = partial.preview?.replace(/\s+/g, " ").trim();
             const title = partial.title?.trim();
             const lastError = partial.lastError;
-            const unreadHint = partial.unreadHint === true;
             const updatedAt = Date.now();
-            const sig = `${status ?? ""}|${preview ?? ""}|${title ?? ""}|${lastError ?? ""}|${unreadHint ? "1" : "0"}`;
+            const sig = `${status ?? ""}|${preview ?? ""}|${title ?? ""}|${lastError ?? ""}`;
             const lastSig = sessionActivityLastSigRef.current[sid];
             const throttleMs = opts?.throttleMs ?? 0;
             const lastAt = sessionActivityLastEmitAtRef.current[sid] ?? 0;
@@ -5027,7 +5024,6 @@ export function StandaloneChat({
               title: title || undefined,
               updatedAt,
               lastError,
-              unreadHint,
             });
           } catch {
             // best effort only
@@ -5088,7 +5084,6 @@ export function StandaloneChat({
             emitSessionActivity({
               status: "streaming",
               preview: evt.delta,
-              unreadHint: true,
             }, { throttleMs: 250 });
 
             // Append to last text block or create new one
@@ -6063,7 +6058,6 @@ export function StandaloneChat({
           createdAt: Date.now(),
           updatedAt: Date.now(),
           pinned: false,
-          unread: false,
           kind: "pipe-watch",
           pipeContext: { pipeName, executionId, startedAt },
           isLoading: true,
@@ -6603,7 +6597,6 @@ export function StandaloneChat({
           createdAt: Date.now(),
           updatedAt: Date.now(),
           pinned: false,
-          unread: false,
         });
       }
       storeState.actions.appendMessage(sidNow, newUserMessage as any);

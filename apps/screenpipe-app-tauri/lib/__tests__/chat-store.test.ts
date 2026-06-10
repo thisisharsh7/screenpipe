@@ -15,6 +15,7 @@ import {
   selectRecentSwitcherSessions,
   getOrCreateEmptyChatId,
   dedupeSessionRecords,
+  isSessionUnread,
   type SessionRecord,
 } from "../stores/chat-store";
 
@@ -32,7 +33,6 @@ function baseRecord(overrides: Partial<SessionRecord> = {}): SessionRecord {
     createdAt: 1_000,
     updatedAt: 1_000,
     pinned: false,
-    unread: false,
     ...overrides,
   };
 }
@@ -257,16 +257,27 @@ describe("chat-store: getOrCreateEmptyChatId (no spam on +new)", () => {
   });
 });
 
-describe("chat-store: setCurrent clears unread atomically", () => {
+describe("chat-store: setCurrent bumps lastViewedAt", () => {
   beforeEach(reset);
 
-  it("flips currentId AND clears unread on the new current in one set", () => {
-    useChatStore.getState().actions.upsert(baseRecord({ id: "A", unread: true }));
+  it("sets lastViewedAt on the new current session", () => {
+    useChatStore.getState().actions.upsert(baseRecord({ id: "A", updatedAt: 5_000 }));
     useChatStore.getState().actions.setCurrent("A");
     const state = useChatStore.getState();
     expect(state.currentId).toBe("A");
-    expect(state.sessions.A.unread).toBe(false);
     expect(typeof state.sessions.A.lastViewedAt).toBe("number");
+    expect(state.sessions.A.lastViewedAt!).toBeGreaterThanOrEqual(Date.now() - 1000);
+  });
+
+  it("bumps lastViewedAt on the previous session when switching", () => {
+    useChatStore.getState().actions.upsert(baseRecord({ id: "A" }));
+    useChatStore.getState().actions.upsert(baseRecord({ id: "B" }));
+    useChatStore.getState().actions.setCurrent("A");
+    const afterA = useChatStore.getState().sessions.A.lastViewedAt!;
+    useChatStore.getState().actions.setCurrent("B");
+    const state = useChatStore.getState();
+    expect(state.sessions.A.lastViewedAt!).toBeGreaterThanOrEqual(afterA);
+    expect(typeof state.sessions.B.lastViewedAt).toBe("number");
   });
 });
 
@@ -323,35 +334,35 @@ describe("chat-store: recent switcher ordering", () => {
   });
 });
 
-describe("chat-store: markUnread guards", () => {
-  beforeEach(reset);
-
-  it("no-ops when the session is the current one", () => {
-    useChatStore.getState().actions.upsert(baseRecord({ id: "A", unread: false }));
-    useChatStore.getState().actions.setCurrent("A");
-    useChatStore.getState().actions.markUnread("A");
-    expect(useChatStore.getState().sessions.A.unread).toBe(false);
+describe("chat-store: isSessionUnread helper", () => {
+  it("returns false when lastViewedAt >= updatedAt", () => {
+    const session = baseRecord({ id: "A", updatedAt: 1_000, lastViewedAt: 1_000 });
+    expect(isSessionUnread(session)).toBe(false);
   });
 
-  it("no-ops when the session is loaded in the panel even if currentId was cleared", () => {
-    // Bug: navigating away from /home reset currentId to null. Late deltas
-    // for the still-loaded panel chat then re-marked it unread, even though
-    // the user had read everything on screen. Guard on panelSessionId fixes
-    // that — the panel keeps the chat visible-on-return, so deltas there
-    // don't count as "new since last seen".
-    useChatStore.getState().actions.upsert(baseRecord({ id: "A", unread: false }));
-    useChatStore.setState({ currentId: null, panelSessionId: "A" });
-    useChatStore.getState().actions.markUnread("A");
-    expect(useChatStore.getState().sessions.A.unread).toBe(false);
+  it("returns true when updatedAt > lastViewedAt", () => {
+    const session = baseRecord({ id: "A", updatedAt: 2_000, lastViewedAt: 1_000 });
+    expect(isSessionUnread(session)).toBe(true);
   });
 
-  it("DOES mark a different session unread when nav'd away", () => {
-    useChatStore.getState().actions.upsert(baseRecord({ id: "A", unread: false }));
-    useChatStore.getState().actions.upsert(baseRecord({ id: "B", unread: false }));
-    useChatStore.setState({ currentId: null, panelSessionId: "A" });
-    useChatStore.getState().actions.markUnread("B");
-    expect(useChatStore.getState().sessions.A.unread).toBe(false);
-    expect(useChatStore.getState().sessions.B.unread).toBe(true);
+  it("returns true when lastViewedAt is undefined (never viewed)", () => {
+    const session = baseRecord({ id: "A", updatedAt: 1_000 });
+    expect(isSessionUnread(session)).toBe(true);
+  });
+
+  it("returns false for pipe-watch sessions", () => {
+    const session = baseRecord({ id: "A", updatedAt: 2_000, lastViewedAt: 1_000, kind: "pipe-watch" });
+    expect(isSessionUnread(session)).toBe(false);
+  });
+
+  it("returns false for pipe-run sessions", () => {
+    const session = baseRecord({ id: "A", updatedAt: 2_000, lastViewedAt: 1_000, kind: "pipe-run" });
+    expect(isSessionUnread(session)).toBe(false);
+  });
+
+  it("returns true for explicit kind=chat when updatedAt > lastViewedAt", () => {
+    const session = baseRecord({ id: "A", updatedAt: 2_000, lastViewedAt: 1_000, kind: "chat" });
+    expect(isSessionUnread(session)).toBe(true);
   });
 });
 

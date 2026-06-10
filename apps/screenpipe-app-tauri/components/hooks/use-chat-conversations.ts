@@ -715,16 +715,22 @@ export function useChatConversations(opts: UseChatConversationsOpts) {
       ...(browserState ? { browserState } : {}),
       ...(existing?.pinned ? { pinned: existing.pinned } : {}),
       ...(existing?.hidden ? { hidden: existing.hidden } : {}),
-      // Preserve sort key across reloads. Source of truth: the in-memory
-      // chat-store, which is bumped exactly once per user-send.
+      // Preserve sort key + read-state across reloads. Source of truth:
+      // the in-memory chat-store, which is bumped exactly once per
+      // user-send (lastUserMessageAt) and on every setCurrent
+      // (lastViewedAt).
       ...(await (async () => {
         const { useChatStore } = await import("@/lib/stores/chat-store");
         const sid = piSessionIdRef.current;
-        const fromStore = sid
-          ? useChatStore.getState().sessions[sid]?.lastUserMessageAt
+        const session = sid
+          ? useChatStore.getState().sessions[sid]
           : undefined;
-        const lastUserMessageAt = fromStore ?? existing?.lastUserMessageAt;
-        return lastUserMessageAt ? { lastUserMessageAt } : {};
+        const lastUserMessageAt = session?.lastUserMessageAt ?? existing?.lastUserMessageAt;
+        const lastViewedAt = session?.lastViewedAt ?? existing?.lastViewedAt;
+        return {
+          ...(lastUserMessageAt ? { lastUserMessageAt } : {}),
+          ...(lastViewedAt ? { lastViewedAt } : {}),
+        };
       })()),
     };
 
@@ -1092,7 +1098,6 @@ export function useChatConversations(opts: UseChatConversationsOpts) {
             createdAt: persisted.createdAt ?? Date.now(),
             updatedAt: persisted.updatedAt ?? Date.now(),
             pinned: persisted.pinned === true,
-            unread: false,
             ...(persisted.hidden === true ? { hidden: true } : {}),
             ...(persisted.kind ? { kind: persisted.kind } : {}),
             ...(persisted.pipeContext ? { pipeContext: persisted.pipeContext } : {}),
@@ -1181,7 +1186,6 @@ export function useChatConversations(opts: UseChatConversationsOpts) {
           createdAt: full.createdAt ?? Date.now(),
           updatedAt: full.updatedAt ?? Date.now(),
           pinned: full.pinned === true,
-          unread: false,
           // Propagate kind / pipeContext from the synthetic conv when
           // initWatch creates a pipe-watch session — the banner reads
           // this off the session record so it persists across
@@ -1342,7 +1346,6 @@ export function useChatConversations(opts: UseChatConversationsOpts) {
         updatedAt: conversation.updatedAt,
         pinned: false,
         hidden: false,
-        unread: false,
         draft: false,
         ...(conversation.lastUserMessageAt
           ? { lastUserMessageAt: conversation.lastUserMessageAt }

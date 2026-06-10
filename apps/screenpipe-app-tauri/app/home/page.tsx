@@ -150,7 +150,6 @@ function HomeContent() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       pinned: false,
-      unread: false,
       draft: true,
     });
     store.actions.setCurrent(id);
@@ -216,10 +215,9 @@ function HomeContent() {
         title?: string;
         updatedAt: number;
         lastError?: string;
-        unreadHint?: boolean;
       }>("chat-session-activity", (event) => {
         if (cancelled) return;
-        const { id, status, preview, title, updatedAt, lastError, unreadHint } = event.payload ?? {};
+        const { id, status, preview, title, updatedAt, lastError } = event.payload ?? {};
         if (!id || !updatedAt) return;
         const store = useChatStore.getState();
         const existing = store.sessions[id];
@@ -235,7 +233,6 @@ function HomeContent() {
             updatedAt,
             pinned: false,
             hidden: false,
-            unread: false,
           });
         } else {
           if (existing.updatedAt > updatedAt) return;
@@ -262,9 +259,6 @@ function HomeContent() {
             lastError: nextLastError,
             updatedAt,
           });
-        }
-        if (unreadHint && store.currentId !== id && store.panelSessionId !== id) {
-          store.actions.markUnread(id);
         }
       });
       unlistenFn = unlisten;
@@ -311,7 +305,6 @@ function HomeContent() {
               updatedAt: Date.now(),
               pinned: false,
               hidden: false,
-              unread: false,
             });
             return;
           }

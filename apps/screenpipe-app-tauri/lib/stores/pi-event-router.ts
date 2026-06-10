@@ -226,10 +226,6 @@ export async function handlePiEvent(envelope: AgentEventEnvelope) {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       pinned: false,
-      // First-touch session is unread unless the user is already viewing
-      // it (this is also how external triggers — chat-prefill, pipe
-      // events — surface in the sidebar).
-      unread: store.currentId !== sid,
     });
     if (snippet) previewLastEmittedAt.set(sid, Date.now());
     return;
@@ -270,11 +266,6 @@ export async function handlePiEvent(envelope: AgentEventEnvelope) {
 
   store.actions.patch(sid, patch);
 
-  // Mark as unread if real assistant content arrived for a session that
-  // is NOT the currently-viewed one. The store's markUnread is a no-op
-  // when sid === currentId, so this is safe to call unconditionally on
-  // any event that produced a snippet.
-  if (snippet) store.actions.markUnread(sid);
 }
 
 function handleSessionEvicted(payload: AgentSessionEvictedPayload) {

@@ -179,6 +179,10 @@ export interface ChatConversation {
 		 *  "re-open" button is shown in the chat header). */
 		collapsed?: boolean;
 	};
+	/** ms since epoch of the last time the user actively viewed this chat.
+	 *  Persisted to disk — drives the computed unread state:
+	 *  `unread = updatedAt > (lastViewedAt ?? 0)` for chat-kind sessions. */
+	lastViewedAt?: number;
 	/** Title source priority: user > ai > fallback. Used to prevent
 	 *  lower-priority titles from overwriting higher-priority ones. */
 	titleSource?: "user" | "ai" | "fallback";

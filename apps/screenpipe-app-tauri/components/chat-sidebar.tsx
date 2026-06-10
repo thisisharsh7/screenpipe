@@ -61,6 +61,7 @@ import {
   useChatActions,
   useOrderedSessions,
   sessionRecordFromMeta,
+  isSessionUnread,
   type SessionRecord,
 } from "@/lib/stores/chat-store";
 import {
@@ -295,7 +296,6 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
           if (existing) {
             useChatStore.getState().actions.patch(id, {
               hidden,
-              unread: false,
               ...(hidden ? { draft: false } : {}),
             });
             return;
@@ -410,7 +410,7 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
     // Stop any active session first to avoid immediate row resurrection
     // from trailing stream events.
     commands.piAbort(id).catch(() => {});
-    actions.patch(id, { hidden: true, unread: false });
+    actions.patch(id, { hidden: true });
     // Archiving should tuck chats away immediately; users can reopen
     // the bucket manually when they want to review archived items.
     setArchivedCollapsed(true);
@@ -426,7 +426,6 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
         createdAt: Date.now(),
         updatedAt: Date.now(),
         pinned: false,
-        unread: false,
         draft: true,
       });
       actions.setCurrent(fresh);
@@ -446,7 +445,7 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
   };
 
   const handleUnarchive = async (id: string) => {
-    actions.patch(id, { hidden: false, unread: false });
+    actions.patch(id, { hidden: false });
     try {
       await updateConversationFlags(id, { hidden: false });
     } catch {
@@ -482,7 +481,6 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
         createdAt: Date.now(),
         updatedAt: Date.now(),
         pinned: false,
-        unread: false,
         draft: true,
       });
       actions.setCurrent(fresh);
@@ -1510,9 +1508,9 @@ export function SidebarChatRow({
     session.status === "thinking" ||
     session.status === "tool";
   const isError = session.status === "error";
-  const isUnread = session.unread && !isCurrent;
+  const isUnread = isSessionUnread(session) && !isCurrent;
   const canShowActions = showActions && !disableHover;
-  const activityAt = session.lastUserMessageAt ?? session.updatedAt ?? session.createdAt;
+  const activityAt = session.lastUserMessageAt ?? session.createdAt;
   const now = useMinuteTick(!isLive && !isUnread && !isError && queuedCount === 0);
   const age = formatCompactAge(activityAt, now);
   const canSwapAgeForMenu = !isLive && !isError && queuedCount === 0 && !isUnread && Boolean(age);

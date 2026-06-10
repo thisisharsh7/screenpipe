@@ -105,16 +105,11 @@ export interface SessionRecord {
   pinned: boolean;
   /** Archived conversation hidden from recents. */
   hidden?: boolean;
-  /** ms since epoch of the most recent time this chat was actively viewed
-   *  in the current app session. Ephemeral UI signal for recent-switching;
-   *  never persisted to disk and does not affect the sidebar order. */
+  /** ms since epoch of the most recent time this chat was actively viewed.
+   *  Persisted to disk so unread state survives restarts. Drives the
+   *  computed unread signal: `updatedAt > (lastViewedAt ?? 0)` for
+   *  chat-kind sessions. */
   lastViewedAt?: number;
-  /** True when there's new assistant activity (delta or completion) that
-   *  the user hasn't seen yet. Set by the event router when content lands
-   *  for a session that is NOT the currently-viewed one; cleared the
-   *  instant the user makes that session current. Sidebar renders unread
-   *  rows in bold, like an email inbox. */
-  unread: boolean;
   /** True until the assistant has replied at least once. Draft sessions
    *  are hidden in the sidebar so the user can't accumulate empty chats
    *  by clicking "New chat" repeatedly. Cleared on the first successful
@@ -210,11 +205,6 @@ interface ChatStoreActions {
   setPanelSession: (id: string | null) => void;
   /** Toggle the pinned state. */
   togglePinned: (id: string) => void;
-  /** Mark a session as having new unseen assistant activity. The router
-   *  calls this when content lands for a session other than the current
-   *  one. No-op if the session id is the current one (you can't be
-   *  unread for the chat you're looking at). */
-  markUnread: (id: string) => void;
 
   // ── Per-session live content ops ─────────────────────────────────────
   // These mutate the in-flight `messages` / `contentBlocks` /
@@ -359,20 +349,18 @@ export const useChatStore = create<ChatStore>((set) => ({
     setCurrent: (id) =>
       set((s) => {
         const viewedAt = Date.now();
-        // Viewing a session counts as reading it — clear the unread flag
-        // for the new current. Same atomic update so the row's unread
-        // state can't transiently flicker between the setCurrent call and
-        // a follow-up markRead call.
-        if (id && s.sessions[id]) {
-          return {
-            currentId: id,
-            sessions: {
-              ...s.sessions,
-              [id]: { ...s.sessions[id], unread: false, lastViewedAt: viewedAt },
-            },
-          };
+        const nextSessions = { ...s.sessions };
+        // Bump lastViewedAt on the previous session so leaving a thread
+        // marks it as "read up to now".
+        const prevId = s.currentId;
+        if (prevId && prevId !== id && nextSessions[prevId]) {
+          nextSessions[prevId] = { ...nextSessions[prevId], lastViewedAt: viewedAt };
         }
-        return { currentId: id };
+        // Viewing the new session counts as reading it — bump lastViewedAt.
+        if (id && nextSessions[id]) {
+          nextSessions[id] = { ...nextSessions[id], lastViewedAt: viewedAt };
+        }
+        return { currentId: id, sessions: nextSessions };
       }),
 
     setPanelSession: (id) => set({ panelSessionId: id }),
@@ -389,23 +377,6 @@ export const useChatStore = create<ChatStore>((set) => ({
         };
       }),
 
-    markUnread: (id) =>
-      set((s) => {
-        const existing = s.sessions[id];
-        if (!existing) return {};
-        // Can't be unread for the chat the user is actively looking at.
-        if (s.currentId === id) return {};
-        // Also a no-op when the chat is still loaded in the (display:none)
-        // panel — the user already read what's there; trailing deltas that
-        // arrive after they navigate to Settings/Pipes/Memories/Timeline
-        // shouldn't re-light the unread dot. The panel keeps streaming in
-        // the background and panelSessionId tracks its current conversation.
-        if (s.panelSessionId === id) return {};
-        if (existing.unread) return {}; // already unread, avoid re-render churn
-        return {
-          sessions: { ...s.sessions, [id]: { ...existing, unread: true } },
-        };
-      }),
 
     setMessages: (id, messages) =>
       set((s) => {
@@ -623,8 +594,7 @@ export const useChatActions = () => useChatStore((s) => s.actions);
 /** Build a fresh SessionRecord from on-disk metadata. Used by both the
  *  boot-time hydrate path and the pipe-run recorder so the sidebar sees
  *  identically-shaped rows whether they were loaded at startup or upserted
- *  the moment a pipe finishes. unread is false: persisted-from-disk rows
- *  aren't user-actionable in the inbox sense. */
+ *  the moment a pipe finishes. */
 export function sessionRecordFromMeta(m: ConversationMeta): SessionRecord {
   return {
     id: m.id,
@@ -636,12 +606,22 @@ export function sessionRecordFromMeta(m: ConversationMeta): SessionRecord {
     createdAt: m.createdAt,
     updatedAt: m.updatedAt,
     pinned: m.pinned,
-    unread: false,
+    lastViewedAt: m.lastViewedAt,
     lastUserMessageAt: m.lastUserMessageAt,
     kind: m.kind,
     pipeContext: m.pipeContext,
     dedupKey: m.dedupKey,
   };
+}
+
+/** Compute whether a session has unseen content. Derived from timestamps —
+ *  no mutable boolean flag, no race conditions. Only chat-kind sessions
+ *  can be "unread"; pipe-watch / pipe-run rows never show the dot. */
+export function isSessionUnread(session: SessionRecord): boolean {
+  return (
+    (session.kind ?? "chat") === "chat" &&
+    session.updatedAt > (session.lastViewedAt ?? 0)
+  );
 }
 
 /**
