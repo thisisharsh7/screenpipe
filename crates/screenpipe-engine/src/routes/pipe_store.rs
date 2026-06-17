@@ -15,6 +15,34 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::pipes_api::SharedPipeManager;
+use screenpipe_core::pipes::{parse_frontmatter, serialize_pipe};
+
+/// Inject store metadata (description, title, icon) into source_md frontmatter
+/// if the fields are not already present. Returns the modified source_md, or the
+/// original unchanged if parsing fails.
+fn inject_store_metadata(source_md: &str, detail: &Value) -> String {
+    let (mut config, body) = match parse_frontmatter(source_md) {
+        Ok(v) => v,
+        Err(_) => return source_md.to_string(),
+    };
+
+    for field in &["description", "title", "icon"] {
+        if config.config.contains_key(*field) {
+            continue;
+        }
+        let value = detail
+            .get(*field)
+            .or_else(|| detail.get("data").and_then(|d| d.get(*field)))
+            .and_then(|v| v.as_str());
+        if let Some(val) = value {
+            config
+                .config
+                .insert(field.to_string(), serde_json::Value::String(val.to_string()));
+        }
+    }
+
+    serialize_pipe(&config, &body).unwrap_or_else(|_| source_md.to_string())
+}
 
 /// Shared HTTP client for all registry requests (connection pooling + keep-alive).
 static REGISTRY_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
@@ -244,6 +272,9 @@ pub async fn pipe_store_install(
         .and_then(|v| v.as_i64())
         .unwrap_or(1);
 
+    // Inject store metadata (description, title, icon) into frontmatter
+    let source_md = inject_store_metadata(&source_md, &detail);
+
     // Extract connections from frontmatter before installing
     let connections: Vec<String> = screenpipe_core::pipes::parse_frontmatter(&source_md)
         .map(|(cfg, _)| cfg.connections)
@@ -304,6 +335,9 @@ pub async fn pipe_store_update(
         .or_else(|| detail.get("data").and_then(|d| d.get("version")))
         .and_then(|v| v.as_i64())
         .unwrap_or(1);
+
+    // Inject store metadata (description, title, icon) into frontmatter
+    let source_md = inject_store_metadata(&source_md, &detail);
 
     // 2. Update locally
     let mgr = pm.lock().await;
