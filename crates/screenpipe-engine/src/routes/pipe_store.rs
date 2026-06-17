@@ -35,9 +35,10 @@ fn inject_store_metadata(source_md: &str, detail: &Value) -> String {
             .or_else(|| detail.get("data").and_then(|d| d.get(*field)))
             .and_then(|v| v.as_str());
         if let Some(val) = value {
-            config
-                .config
-                .insert(field.to_string(), serde_json::Value::String(val.to_string()));
+            config.config.insert(
+                field.to_string(),
+                serde_json::Value::String(val.to_string()),
+            );
         }
     }
 
