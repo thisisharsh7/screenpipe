@@ -1055,6 +1055,8 @@ export function useChatConversations(opts: UseChatConversationsOpts) {
     }
 
     // (2) Reset panel flags — these are panel-local, not session-local.
+    // Clear any lingering text selection from the previous conversation
+    window.getSelection()?.removeAllRanges();
     piStreamingTextRef.current = "";
     piMessageIdRef.current = null;
     piContentBlocksRef.current = [];
